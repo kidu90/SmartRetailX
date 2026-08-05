@@ -1,0 +1,103 @@
+services:
+  user-service:
+    build:
+      context: ./services/user-service
+    container_name: smartretailx-user-service
+    environment:
+      PORT: 3001
+      NODE_ENV: development
+      JWT_SECRET: local-dev-jwt-secret-change-me
+      JWT_EXPIRES_IN: 24h
+      LOG_LEVEL: info
+      SERVICE_NAME: user-service
+    ports:
+      - "3001:3001"
+    networks:
+      - smartretailx-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  catalogue-service:
+    build:
+      context: ./services/catalogue-service
+    container_name: smartretailx-catalogue-service
+    environment:
+      PORT: 3002
+      NODE_ENV: development
+      LOG_LEVEL: info
+      SERVICE_NAME: catalogue-service
+    ports:
+      - "3002:3002"
+    networks:
+      - smartretailx-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  order-service:
+    build:
+      context: ./services/order-service
+    container_name: smartretailx-order-service
+    environment:
+      PORT: 3003
+      NODE_ENV: development
+      LOG_LEVEL: info
+      SERVICE_NAME: order-service
+      CATALOGUE_SERVICE_URL: http://catalogue-service:3002
+      PAYMENT_SERVICE_URL: http://payment-service:3004
+      EVENT_BUS_ENABLED: "true"
+    ports:
+      - "3003:3003"
+    depends_on:
+      catalogue-service:
+        condition: service_healthy
+    networks:
+      - smartretailx-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3003/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  gateway:
+    build:
+      context: ./gateway
+    container_name: smartretailx-gateway
+    environment:
+      PORT: 3000
+      NODE_ENV: development
+      LOG_LEVEL: info
+      SERVICE_NAME: gateway
+      USER_SERVICE_URL: http://user-service:3001
+      CATALOGUE_SERVICE_URL: http://catalogue-service:3002
+      ORDER_SERVICE_URL: http://order-service:3003
+    ports:
+      - "3000:3000"
+    depends_on:
+      user-service:
+        condition: service_healthy
+      catalogue-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+    networks:
+      - smartretailx-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  smartretailx-net:
+    driver: bridge
+    name: smartretailx-net

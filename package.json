@@ -1,0 +1,24 @@
+{
+  "name": "smartretailx",
+  "version": "1.0.0",
+  "description": "Cloud-native retail platform microservices monorepo",
+  "private": true,
+  "workspaces": [
+    "services/*",
+    "gateway"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "test:user": "npm test --workspace=user-service",
+    "test:catalogue": "npm test --workspace=catalogue-service",
+    "test:order": "npm test --workspace=order-service",
+    "test:gateway": "npm test --workspace=gateway",
+    "start:user": "npm start --workspace=user-service",
+    "start:catalogue": "npm start --workspace=catalogue-service",
+    "start:order": "npm start --workspace=order-service",
+    "start:gateway": "npm start --workspace=gateway"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
