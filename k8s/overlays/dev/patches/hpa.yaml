@@ -1,0 +1,32 @@
+# Dev HPA: allow single replica to save cost; still caps at 5
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: user-service
+spec:
+  minReplicas: 1
+  maxReplicas: 5
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: catalogue-service
+spec:
+  minReplicas: 1
+  maxReplicas: 5
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: order-service
+spec:
+  minReplicas: 1
+  maxReplicas: 5
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: gateway
+spec:
+  minReplicas: 1
+  maxReplicas: 5

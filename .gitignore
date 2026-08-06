@@ -10,3 +10,6 @@ npm-debug.log*
 .idea/
 .vscode/
 !*.env.example
+# Never commit filled-in Kubernetes secrets
+k8s/**/secrets.local.yaml
+k8s/**/*.secret.local.yaml

@@ -1,0 +1,41 @@
+# AWS Load Balancer Controller (ALB Ingress) — single external host for the gateway.
+# Prerequisites:
+#   - AWS Load Balancer Controller installed in the cluster
+#   - ACM certificate ARN for the host
+#   - Subnets tagged for ALB discovery (kubernetes.io/role/elb)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: smartretailx-gateway
+  labels:
+    app: gateway
+    app.kubernetes.io/name: gateway
+    app.kubernetes.io/part-of: smartretailx
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    # Replace with your ACM certificate ARN (us-east-1 example format shown)
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:REGION:ACCOUNT_ID:certificate/CERTIFICATE_ID
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/success-codes: "200"
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=60
+    # Multi-AZ: ALB spans subnets across AZs automatically when subnets are tagged
+    alb.ingress.kubernetes.io/tags: Environment=base,Project=smartretailx
+spec:
+  ingressClassName: alb
+  rules:
+    - host: api.smartretailx.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: 80

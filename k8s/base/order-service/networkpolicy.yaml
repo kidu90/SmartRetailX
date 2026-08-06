@@ -1,0 +1,58 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: order-service
+  labels:
+    app: order-service
+    app.kubernetes.io/name: order-service
+    app.kubernetes.io/part-of: smartretailx
+spec:
+  podSelector:
+    matchLabels:
+      app: order-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Only the API gateway may call order-service
+    - from:
+        - podSelector:
+            matchLabels:
+              app: gateway
+      ports:
+        - protocol: TCP
+          port: 3003
+  egress:
+    # DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # catalogue-service (product lookup)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: catalogue-service
+      ports:
+        - protocol: TCP
+          port: 3002
+    # payment-service (in-cluster or external IP — adjust CIDR for real payment endpoints)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: payment-service
+      ports:
+        - protocol: TCP
+          port: 3004
+    # Allow HTTPS egress for external payment APIs when payment is outside the cluster
+    - ports:
+        - protocol: TCP
+          port: 443

@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-service-config
+data:
+  NODE_ENV: "development"
+  LOG_LEVEL: "debug"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: catalogue-service-config
+data:
+  NODE_ENV: "development"
+  LOG_LEVEL: "debug"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: order-service-config
+data:
+  NODE_ENV: "development"
+  LOG_LEVEL: "debug"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-config
+data:
+  NODE_ENV: "development"
+  LOG_LEVEL: "debug"
