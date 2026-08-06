@@ -13,3 +13,12 @@ npm-debug.log*
 # Never commit filled-in Kubernetes secrets
 k8s/**/secrets.local.yaml
 k8s/**/*.secret.local.yaml
+# Terraform
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/crash.log
+**/override.tf
+**/backend.hcl
+**/terraform.tfvars
+infra/modules/lambda/build/

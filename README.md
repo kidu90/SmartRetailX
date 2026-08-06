@@ -455,3 +455,312 @@ kubectl -n smartretailx describe ingress smartretailx-gateway
 ```
 
 These commands can be used to verify that the application has been deployed successfully and that workloads are distributed across the available infrastructure.
+
+# SmartRetailX AWS Infrastructure (Terraform)
+
+This directory contains the Terraform configuration used to provision the AWS infrastructure required for the SmartRetailX cloud platform.
+
+The infrastructure is organised using reusable Terraform modules and separate environments for development and production. Terraform remote state is stored securely in Amazon S3 with DynamoDB state locking to prevent concurrent changes.
+
+---
+
+## Project Structure
+
+```text
+infra/
+├── README.md
+├── bootstrap/
+│   └── Creates Terraform state resources
+│
+├── modules/
+│   ├── vpc/
+│   ├── eks/
+│   ├── rds/
+│   ├── dynamodb/
+│   ├── s3/
+│   ├── cloudfront/
+│   ├── route53/
+│   ├── messaging/
+│   ├── lambda/
+│   ├── iam/
+│   └── secrets/
+│
+└── envs/
+    ├── dev/
+    └── prod/
+```
+
+Each module is responsible for managing one AWS service or infrastructure component. Small cost optimisation notes are included inside the modules to explain design decisions.
+
+---
+
+# Initial Setup
+
+## 1. Create Terraform Remote State Resources
+
+This step only needs to be completed once for an AWS account.
+
+Navigate to the bootstrap folder:
+
+```bash
+cd infra/bootstrap
+```
+
+Initialise Terraform:
+
+```bash
+terraform init
+```
+
+Create the S3 bucket and DynamoDB table used for state management:
+
+```bash
+terraform apply \
+-var="state_bucket_name=smartretailx-tfstate-<ACCOUNT_ID>" \
+-var="aws_region=ap-south-1"
+```
+
+The S3 bucket stores Terraform state files, while DynamoDB provides state locking.
+
+---
+
+# Environment Configuration
+
+Each environment has its own Terraform configuration.
+
+Example:
+
+```text
+envs/
+├── dev/
+└── prod/
+```
+
+Navigate to an environment:
+
+```bash
+cd infra/envs/dev
+```
+
+Copy the backend configuration:
+
+```bash
+cp backend.hcl.example backend.hcl
+```
+
+Update:
+
+- Terraform state bucket name
+- AWS region
+- DynamoDB lock table name
+
+Create the variable file:
+
+```bash
+cp terraform.tfvars.example terraform.tfvars
+```
+
+Update environment-specific values such as:
+
+- AWS region
+- Cluster name
+- Database settings
+- S3 bucket names
+
+---
+
+# Deploy Infrastructure
+
+Terraform modules are connected using resource references, which ensures AWS resources are created in the correct order.
+
+The deployment flow is:
+
+| Stage              | Terraform Modules          |
+| ------------------ | -------------------------- |
+| Networking         | VPC                        |
+| Compute            | EKS                        |
+| Storage & Database | RDS, DynamoDB, S3, Secrets |
+| CDN & DNS          | CloudFront, Route53        |
+| Messaging          | SNS, SQS, EventBridge      |
+| Permissions        | IAM                        |
+
+Run:
+
+```bash
+terraform init -backend-config=backend.hcl
+```
+
+Review changes:
+
+```bash
+terraform plan -var-file=terraform.tfvars
+```
+
+Deploy:
+
+```bash
+terraform apply -var-file=terraform.tfvars
+```
+
+---
+
+# Application Deployment
+
+After the AWS infrastructure is ready:
+
+1. Build Docker images.
+2. Push images to Amazon ECR.
+3. Configure Kubernetes access.
+4. Deploy application manifests.
+
+Example:
+
+```bash
+kubectl apply -k k8s/overlays/prod
+```
+
+The Kubernetes layer manages the application containers, while Terraform manages the AWS infrastructure.
+
+---
+
+# Development vs Production Configuration
+
+| Resource        | Development           | Production                     |
+| --------------- | --------------------- | ------------------------------ |
+| NAT Gateway     | Single NAT Gateway    | NAT Gateway per AZ             |
+| EKS Nodes       | Spot instances        | On-demand instances            |
+| EKS Capacity    | Minimum 1 node        | Minimum 3 nodes                |
+| Database        | Aurora Serverless v2  | Multi-AZ Aurora cluster        |
+| DynamoDB Backup | Disabled              | Point-in-time recovery enabled |
+| CloudFront      | Price Class 100       | Price Class 200                |
+| Secrets         | Short recovery period | 30-day recovery window         |
+
+Development settings prioritise lower cost, while production settings focus on availability and resilience.
+
+---
+
+# Terraform Outputs
+
+After deployment, useful information can be retrieved using:
+
+```bash
+terraform output eks_cluster_name
+
+terraform output eks_cluster_endpoint
+
+terraform output rds_cluster_endpoint
+
+terraform output dynamodb_table_name
+
+terraform output cloudfront_domain_name
+
+terraform output sns_order_events_arn
+
+terraform output sqs_notification_arn
+```
+
+---
+
+# Application Request Flow
+
+```mermaid
+flowchart LR
+
+Client --> Route53
+
+Route53 --> CloudFront
+Route53 --> ALB
+
+CloudFront --> S3
+
+ALB --> Gateway
+
+Gateway --> UserService
+Gateway --> CatalogueService
+Gateway --> OrderService
+
+UserService --> RDS
+OrderService --> RDS
+
+CatalogueService --> DynamoDB
+CatalogueService --> S3
+```
+
+The API traffic enters through Route53 and the Application Load Balancer before reaching the API Gateway running inside Amazon EKS.
+
+Static content is served through CloudFront and S3.
+
+---
+
+# Event Processing Flow
+
+```mermaid
+flowchart LR
+
+OrderService --> EventBridge
+
+OrderService --> SNS
+
+EventBridge --> SNS
+
+SNS --> SQS
+
+SQS --> Lambda
+
+Lambda --> Notification
+
+SQS --> DLQ
+```
+
+Order updates are published as events instead of directly calling every dependent service.
+
+This improves scalability and reduces coupling between services.
+
+---
+
+# Cost Optimisation Decisions
+
+| Component       | Design Decision                                                    |
+| --------------- | ------------------------------------------------------------------ |
+| VPC             | Reduced NAT usage in development environments                      |
+| EKS             | Uses managed node groups and Spot instances where appropriate      |
+| RDS             | Serverless database option for development                         |
+| DynamoDB        | Uses on-demand capacity mode                                       |
+| S3              | Uses lifecycle rules and CloudFront integration                    |
+| CloudFront      | Uses lower price classes where possible                            |
+| Messaging       | Uses managed AWS messaging services instead of self-hosted brokers |
+| Lambda          | Uses ARM architecture and event-based execution                    |
+| IAM             | Uses restricted permissions instead of broad access                |
+| Secrets Manager | Stores only required sensitive values                              |
+
+---
+
+# Validation
+
+Format Terraform files:
+
+```bash
+terraform fmt -recursive
+```
+
+Validate development environment:
+
+```bash
+cd infra/envs/dev
+
+terraform init -backend=false
+
+terraform validate
+```
+
+Validate production environment:
+
+```bash
+cd ../prod
+
+terraform init -backend=false
+
+terraform validate
+```
+
+A successful validation confirms that the Terraform configuration is syntactically correct before deployment.

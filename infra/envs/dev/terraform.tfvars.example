@@ -1,0 +1,7 @@
+aws_region         = "ap-south-1"
+environment        = "dev"
+name_prefix        = "smartretailx-dev"
+vpc_cidr           = "10.10.0.0/16"
+domain_name        = "dev.smartretailx.example.com"
+assets_bucket_name = "smartretailx-dev-assets-CHANGE_ME"
+create_route53_zone = true
