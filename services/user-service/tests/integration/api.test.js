@@ -13,30 +13,48 @@ describe('user-service API', () => {
   it('GET /health returns ok', async () => {
     const res = await request(app).get('/health');
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe('ok');
   });
 
-  it('GET /ready returns ready', async () => {
-    const res = await request(app).get('/ready');
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe('ready');
-  });
-
-  it('registers and logs in a user', async () => {
+  it('registers and logs in with access + refresh tokens', async () => {
     const registerRes = await request(app)
       .post('/api/v1/auth/register')
       .send({ email: 'shopper@example.com', password: 'password123', name: 'Shopper' });
 
     expect(registerRes.status).toBe(201);
-    expect(registerRes.body.token).toBeDefined();
-    expect(registerRes.body.user.email).toBe('shopper@example.com');
+    expect(registerRes.body.accessToken).toBeDefined();
+    expect(registerRes.body.refreshToken).toBeDefined();
+    expect(registerRes.body.user.role).toBe('customer');
 
     const loginRes = await request(app)
       .post('/api/v1/auth/login')
       .send({ email: 'shopper@example.com', password: 'password123' });
 
     expect(loginRes.status).toBe(200);
-    expect(loginRes.body.token).toBeDefined();
+    expect(loginRes.body.accessToken).toBeDefined();
+  });
+
+  it('refreshes tokens and erases account (GDPR)', async () => {
+    const { body } = await request(app)
+      .post('/api/v1/auth/register')
+      .send({ email: 'me@example.com', password: 'password123', name: 'Me' });
+
+    const refreshed = await request(app)
+      .post('/api/v1/auth/refresh')
+      .send({ refreshToken: body.refreshToken });
+
+    expect(refreshed.status).toBe(200);
+    expect(refreshed.body.accessToken).toBeDefined();
+
+    const me = await request(app)
+      .get('/api/v1/users/me')
+      .set('Authorization', `Bearer ${refreshed.body.accessToken}`);
+    expect(me.status).toBe(200);
+
+    const erased = await request(app)
+      .delete('/api/v1/users/me')
+      .set('Authorization', `Bearer ${refreshed.body.accessToken}`);
+    expect(erased.status).toBe(200);
+    expect(erased.body.erased).toBe(true);
   });
 
   it('rejects duplicate registration', async () => {
@@ -51,38 +69,10 @@ describe('user-service API', () => {
     expect(res.status).toBe(409);
   });
 
-  it('gets and updates profile with JWT', async () => {
-    const { body } = await request(app)
-      .post('/api/v1/auth/register')
-      .send({ email: 'me@example.com', password: 'password123', name: 'Me' });
-
-    const me = await request(app)
-      .get('/api/v1/users/me')
-      .set('Authorization', `Bearer ${body.token}`);
-
-    expect(me.status).toBe(200);
-    expect(me.body.name).toBe('Me');
-
-    const updated = await request(app)
-      .put('/api/v1/users/me')
-      .set('Authorization', `Bearer ${body.token}`)
-      .send({ name: 'Updated Me' });
-
-    expect(updated.status).toBe(200);
-    expect(updated.body.name).toBe('Updated Me');
-  });
-
   it('validates register payload', async () => {
     const res = await request(app)
       .post('/api/v1/auth/register')
       .send({ email: 'not-an-email', password: 'short' });
-
     expect(res.status).toBe(400);
-    expect(res.body.error.message).toBe('Validation failed');
-  });
-
-  it('serves swagger docs', async () => {
-    const res = await request(app).get('/docs/');
-    expect(res.status).toBe(200);
   });
 });

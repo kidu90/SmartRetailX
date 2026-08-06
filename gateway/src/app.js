@@ -4,13 +4,12 @@ const helmet = require('helmet');
 const swaggerUi = require('swagger-ui-express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const pinoHttp = require('pino-http');
+const { ROLES, authenticate, requireRoles } = require('@smartretailx/auth-middleware');
 const config = require('./config');
 const logger = require('./utils/logger');
 const { buildAggregatedSwagger } = require('./swagger/aggregate');
 
 function createProxy(target) {
-  // Mounted under /users, /catalogue, /orders — Express already strips the
-  // mount prefix, so upstreams receive /api/v1/... (or /health, /docs, etc.).
   return createProxyMiddleware({
     target,
     changeOrigin: true,
@@ -29,6 +28,9 @@ function createProxy(target) {
 function createApp() {
   const app = express();
   const swaggerDocument = buildAggregatedSwagger();
+  const requireAuth = authenticate({ jwtSecret: () => config.jwtSecret });
+  const requireCatalogueWriters = requireRoles(ROLES.ADMIN, ROLES.WAREHOUSE_STAFF);
+  const requireOrderAccess = requireRoles(ROLES.CUSTOMER, ROLES.ADMIN, ROLES.WAREHOUSE_STAFF);
 
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors());
@@ -57,10 +59,22 @@ function createApp() {
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
   app.get('/swagger.json', (_req, res) => res.json(swaggerDocument));
 
-  // Gateway routes: /users/*, /catalogue/*, /orders/*
+  // Public auth endpoints (register/login/refresh) — no JWT required
   app.use('/users', createProxy(config.userServiceUrl));
-  app.use('/catalogue', createProxy(config.catalogueServiceUrl));
-  app.use('/orders', createProxy(config.orderServiceUrl));
+
+  // Catalogue reads are public; mutations checked here then re-checked upstream
+  app.use('/catalogue', (req, res, next) => {
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+      return requireAuth(req, res, (err) => {
+        if (err) return next(err);
+        return requireCatalogueWriters(req, res, next);
+      });
+    }
+    return next();
+  }, createProxy(config.catalogueServiceUrl));
+
+  // All order traffic requires a valid token + allowed role
+  app.use('/orders', requireAuth, requireOrderAccess, createProxy(config.orderServiceUrl));
 
   app.use((_req, res) => {
     res.status(404).json({

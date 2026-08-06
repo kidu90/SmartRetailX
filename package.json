@@ -4,6 +4,7 @@
   "description": "Cloud-native retail platform microservices monorepo",
   "private": true,
   "workspaces": [
+    "packages/*",
     "services/*",
     "gateway"
   ],
@@ -13,6 +14,7 @@
     "test:catalogue": "npm test --workspace=catalogue-service",
     "test:order": "npm test --workspace=order-service",
     "test:gateway": "npm test --workspace=gateway",
+    "test:auth": "npm test --workspace=@smartretailx/auth-middleware",
     "start:user": "npm start --workspace=user-service",
     "start:catalogue": "npm start --workspace=catalogue-service",
     "start:order": "npm start --workspace=order-service",

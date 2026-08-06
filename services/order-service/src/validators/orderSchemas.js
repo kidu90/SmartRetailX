@@ -10,7 +10,7 @@ const ORDER_STATUSES = [
 ];
 
 const createOrderSchema = z.object({
-  userId: z.string().min(1),
+  userId: z.string().min(1).optional(),
   items: z
     .array(
       z.object({

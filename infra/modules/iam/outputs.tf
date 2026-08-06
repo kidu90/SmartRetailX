@@ -9,3 +9,7 @@ output "order_service_role_arn" {
 output "catalogue_service_role_arn" {
   value = aws_iam_role.catalogue_service.arn
 }
+
+output "gateway_role_arn" {
+  value = aws_iam_role.gateway.arn
+}

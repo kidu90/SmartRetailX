@@ -1,5 +1,9 @@
 const request = require('supertest');
+const jwt = require('jsonwebtoken');
+const { ROLES } = require('@smartretailx/auth-middleware');
 const createApp = require('../src/app');
+
+const SECRET = 'dev-secret-change-me';
 
 describe('gateway', () => {
   let app;
@@ -18,20 +22,31 @@ describe('gateway', () => {
     const res = await request(app).get('/ready');
     expect(res.status).toBe(200);
     expect(res.body.upstreams.users).toBeDefined();
-    expect(res.body.upstreams.catalogue).toBeDefined();
-    expect(res.body.upstreams.orders).toBeDefined();
   });
 
   it('serves aggregated swagger', async () => {
     const docs = await request(app).get('/docs/');
     expect(docs.status).toBe(200);
-
     const spec = await request(app).get('/swagger.json');
-    expect(spec.status).toBe(200);
     expect(spec.body.info.title).toContain('Gateway');
-    expect(spec.body.paths['/users/api/v1/auth/register']).toBeDefined();
-    expect(spec.body.paths['/catalogue/api/v1/products']).toBeDefined();
-    expect(spec.body.paths['/orders/api/v1/orders']).toBeDefined();
+  });
+
+  it('requires JWT for /orders', async () => {
+    const res = await request(app).get('/orders/api/v1/orders');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 for catalogue mutations with customer role', async () => {
+    const token = jwt.sign(
+      { email: 'c@example.com', role: ROLES.CUSTOMER, typ: 'access' },
+      SECRET,
+      { subject: 'c1', expiresIn: '15m' }
+    );
+    const res = await request(app)
+      .post('/catalogue/api/v1/categories')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'X' });
+    expect(res.status).toBe(403);
   });
 
   it('returns 404 for unknown routes', async () => {

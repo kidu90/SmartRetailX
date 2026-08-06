@@ -8,6 +8,14 @@ const config = {
   userServiceUrl: process.env.USER_SERVICE_URL || 'http://localhost:3001',
   catalogueServiceUrl: process.env.CATALOGUE_SERVICE_URL || 'http://localhost:3002',
   orderServiceUrl: process.env.ORDER_SERVICE_URL || 'http://localhost:3003',
+  jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-me',
 };
 
+function applySecrets(secrets) {
+  if (!secrets) return config;
+  config.jwtSecret = secrets.jwtSecret || config.jwtSecret;
+  return config;
+}
+
 module.exports = config;
+module.exports.applySecrets = applySecrets;

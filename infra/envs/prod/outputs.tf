@@ -73,3 +73,12 @@ output "secrets_db_arn" {
 output "secrets_jwt_arn" {
   value = module.secrets.jwt_secret_arn
 }
+
+output "acm_certificate_arn" {
+  description = "Regional ACM cert ARN — set on ALB Ingress annotation alb.ingress.kubernetes.io/certificate-arn"
+  value       = module.acm.validated_certificate_arn
+}
+
+output "irsa_gateway_role_arn" {
+  value = module.iam.gateway_role_arn
+}

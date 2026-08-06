@@ -96,6 +96,17 @@ module "route53" {
   tags                      = local.tags
 }
 
+module "acm" {
+  source = "../../modules/acm"
+
+  name_prefix               = var.name_prefix
+  api_domain_name           = "api.${var.domain_name}"
+  subject_alternative_names = []
+  zone_id                   = module.route53.zone_id
+  create_validation_records = var.create_route53_zone
+  tags                      = local.tags
+}
+
 module "messaging" {
   source = "../../modules/messaging"
 

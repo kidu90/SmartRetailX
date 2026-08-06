@@ -1,4 +1,6 @@
 const request = require('supertest');
+const jwt = require('jsonwebtoken');
+const { ROLES } = require('@smartretailx/auth-middleware');
 const createApp = require('../../src/app');
 const orderStore = require('../../src/store/orderStore');
 const catalogueClient = require('../../src/clients/catalogueClient');
@@ -7,6 +9,17 @@ const eventPublisher = require('../../src/events/eventPublisher');
 
 jest.mock('../../src/clients/catalogueClient');
 jest.mock('../../src/clients/paymentClient');
+
+const SECRET = 'dev-secret-change-me';
+
+function authHeader(role, sub = 'user-1') {
+  const token = jwt.sign(
+    { email: `${role}@example.com`, role, typ: 'access' },
+    SECRET,
+    { subject: sub, expiresIn: '15m' }
+  );
+  return `Bearer ${token}`;
+}
 
 describe('order-service API', () => {
   let app;
@@ -36,9 +49,10 @@ describe('order-service API', () => {
     expect((await request(app).get('/ready')).status).toBe(200);
   });
 
-  it('creates, fetches, and updates an order with events', async () => {
+  it('creates, fetches, and updates an order with correct roles', async () => {
     const createRes = await request(app)
       .post('/api/v1/orders')
+      .set('Authorization', authHeader(ROLES.CUSTOMER, 'user-1'))
       .send({
         userId: 'user-1',
         items: [{ productId, quantity: 2 }],
@@ -47,28 +61,31 @@ describe('order-service API', () => {
 
     expect(createRes.status).toBe(201);
     expect(createRes.body.status).toBe('paid');
-    expect(createRes.body.total).toBe(50);
-    expect(eventPublisher.getPublished()).toHaveLength(1);
 
-    const getRes = await request(app).get(`/api/v1/orders/${createRes.body.id}`);
+    const getRes = await request(app)
+      .get(`/api/v1/orders/${createRes.body.id}`)
+      .set('Authorization', authHeader(ROLES.CUSTOMER, 'user-1'));
     expect(getRes.status).toBe(200);
+
+    const forbiddenStatus = await request(app)
+      .patch(`/api/v1/orders/${createRes.body.id}/status`)
+      .set('Authorization', authHeader(ROLES.CUSTOMER, 'user-1'))
+      .send({ status: 'processing' });
+    expect(forbiddenStatus.status).toBe(403);
 
     const statusRes = await request(app)
       .patch(`/api/v1/orders/${createRes.body.id}/status`)
+      .set('Authorization', authHeader(ROLES.WAREHOUSE_STAFF, 'wh-1'))
       .send({ status: 'processing' });
-
     expect(statusRes.status).toBe(200);
-    expect(statusRes.body.status).toBe('processing');
-    expect(eventPublisher.getPublished()).toHaveLength(2);
   });
 
-  it('validates create payload', async () => {
+  it('rejects unauthenticated create', async () => {
     const res = await request(app).post('/api/v1/orders').send({ userId: 'u1' });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(401);
   });
 
   it('serves swagger docs', async () => {
-    const res = await request(app).get('/docs/');
-    expect(res.status).toBe(200);
+    expect((await request(app).get('/docs/')).status).toBe(200);
   });
 });

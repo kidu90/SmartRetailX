@@ -18,4 +18,13 @@ async function updateMe(req, res, next) {
   }
 }
 
-module.exports = { getMe, updateMe };
+async function eraseMe(req, res, next) {
+  try {
+    const result = userService.eraseUser(req.user.id);
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getMe, updateMe, eraseMe };

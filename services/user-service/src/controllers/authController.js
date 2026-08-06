@@ -18,4 +18,22 @@ async function login(req, res, next) {
   }
 }
 
-module.exports = { register, login };
+async function refresh(req, res, next) {
+  try {
+    const result = await userService.refresh(req.body.refreshToken);
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function logout(req, res, next) {
+  try {
+    const result = userService.logout(req.body.refreshToken);
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { register, login, refresh, logout };

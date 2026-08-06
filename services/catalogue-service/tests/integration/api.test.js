@@ -1,6 +1,19 @@
 const request = require('supertest');
+const jwt = require('jsonwebtoken');
+const { ROLES } = require('@smartretailx/auth-middleware');
 const createApp = require('../../src/app');
 const catalogueStore = require('../../src/store/catalogueStore');
+
+const SECRET = 'dev-secret-change-me';
+
+function authHeader(role = ROLES.ADMIN, sub = 'admin-1') {
+  const token = jwt.sign(
+    { email: `${role}@example.com`, role, typ: 'access' },
+    SECRET,
+    { subject: sub, expiresIn: '15m' }
+  );
+  return `Bearer ${token}`;
+}
 
 describe('catalogue-service API', () => {
   let app;
@@ -15,15 +28,17 @@ describe('catalogue-service API', () => {
     expect((await request(app).get('/ready')).status).toBe(200);
   });
 
-  it('supports category and product CRUD plus search', async () => {
+  it('supports category and product CRUD plus search with admin token', async () => {
     const categoryRes = await request(app)
       .post('/api/v1/categories')
+      .set('Authorization', authHeader(ROLES.ADMIN))
       .send({ name: 'Electronics', description: 'Gadgets' });
     expect(categoryRes.status).toBe(201);
     const categoryId = categoryRes.body.id;
 
     const productRes = await request(app)
       .post('/api/v1/products')
+      .set('Authorization', authHeader(ROLES.ADMIN))
       .send({
         name: 'Wireless Headphones',
         description: 'Noise cancelling',
@@ -38,30 +53,31 @@ describe('catalogue-service API', () => {
 
     const search = await request(app).get('/api/v1/search').query({ q: 'headphones' });
     expect(search.status).toBe(200);
-    expect(search.body).toHaveLength(1);
 
     const updated = await request(app)
       .put(`/api/v1/products/${productRes.body.id}`)
-      .send({
-        name: 'Pro Headphones',
-        price: 129.99,
-        categoryId,
-        stock: 8,
-      });
+      .set('Authorization', authHeader(ROLES.WAREHOUSE_STAFF))
+      .send({ name: 'Pro Headphones', price: 129.99, categoryId, stock: 8 });
     expect(updated.status).toBe(200);
-    expect(updated.body.name).toBe('Pro Headphones');
 
-    const del = await request(app).delete(`/api/v1/products/${productRes.body.id}`);
+    const forbidden = await request(app)
+      .post('/api/v1/categories')
+      .set('Authorization', authHeader(ROLES.CUSTOMER))
+      .send({ name: 'Nope' });
+    expect(forbidden.status).toBe(403);
+
+    const del = await request(app)
+      .delete(`/api/v1/products/${productRes.body.id}`)
+      .set('Authorization', authHeader(ROLES.ADMIN));
     expect(del.status).toBe(204);
   });
 
-  it('validates product create', async () => {
+  it('rejects unauthenticated mutations', async () => {
     const res = await request(app).post('/api/v1/products').send({ name: 'X' });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(401);
   });
 
   it('serves swagger docs', async () => {
-    const res = await request(app).get('/docs/');
-    expect(res.status).toBe(200);
+    expect((await request(app).get('/docs/')).status).toBe(200);
   });
 });

@@ -2,13 +2,35 @@ const config = require('../config');
 const AppError = require('../utils/AppError');
 
 /**
- * Calls payment-service over REST. For local scaffolding without a real
- * payment-service, falls back to a simulated successful charge when the
- * downstream host is unreachable in development.
+ * PCI-DSS: never accept or persist raw PANs. Tokenize via a mock PSP and charge
+ * using the opaque token only.
  */
-async function chargePayment({ orderId, amount, method, userId }, fetchImpl = fetch) {
+function tokenizeCard(paymentMethod) {
+  if (paymentMethod === 'cash_on_delivery') {
+    return { token: null, method: paymentMethod };
+  }
+  // Mock third-party gateway response — real impl would call Stripe/Adyen/etc.
+  return {
+    token: `tok_mock_${paymentMethod}_${Date.now()}`,
+    method: paymentMethod,
+    psp: 'mock-psp',
+  };
+}
+
+async function chargePayment(
+  { orderId, amount, method, userId, paymentToken },
+  fetchImpl = fetch
+) {
+  const tokenized = paymentToken || tokenizeCard(method).token;
   const url = `${config.paymentServiceUrl}/api/v1/payments`;
-  const body = JSON.stringify({ orderId, amount, method, userId });
+  const body = JSON.stringify({
+    orderId,
+    amount,
+    method,
+    userId,
+    // Opaque token only — never a card number / CVV
+    paymentToken: tokenized,
+  });
 
   let response;
   try {
@@ -25,6 +47,7 @@ async function chargePayment({ orderId, amount, method, userId }, fetchImpl = fe
       id: `sim-pay-${orderId}`,
       status: 'succeeded',
       amount,
+      paymentToken: tokenized,
       simulated: true,
     };
   }
@@ -37,4 +60,4 @@ async function chargePayment({ orderId, amount, method, userId }, fetchImpl = fe
   return response.json();
 }
 
-module.exports = { chargePayment };
+module.exports = { chargePayment, tokenizeCard };

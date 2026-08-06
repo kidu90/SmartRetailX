@@ -16,24 +16,21 @@ terraform {
   }
 }
 
-data "aws_partition" "current" {}
-
 locals {
   tags = merge(var.tags, {
     Module = "iam"
   })
 
-  oidc_sub_user      = "system:serviceaccount:${var.k8s_namespace}:user-service"
-  oidc_sub_order     = "system:serviceaccount:${var.k8s_namespace}:order-service"
-  oidc_sub_catalogue = "system:serviceaccount:${var.k8s_namespace}:catalogue-service"
+  oidc_subjects = {
+    user-service      = "system:serviceaccount:${var.k8s_namespace}:user-service"
+    order-service     = "system:serviceaccount:${var.k8s_namespace}:order-service"
+    catalogue-service = "system:serviceaccount:${var.k8s_namespace}:catalogue-service"
+    gateway           = "system:serviceaccount:${var.k8s_namespace}:gateway"
+  }
 }
 
 data "aws_iam_policy_document" "irsa_assume" {
-  for_each = {
-    user-service      = local.oidc_sub_user
-    order-service     = local.oidc_sub_order
-    catalogue-service = local.oidc_sub_catalogue
-  }
+  for_each = local.oidc_subjects
 
   statement {
     effect  = "Allow"
@@ -58,7 +55,6 @@ data "aws_iam_policy_document" "irsa_assume" {
   }
 }
 
-# --- user-service: read JWT secret ---
 resource "aws_iam_role" "user_service" {
   name               = "${var.name_prefix}-irsa-user-service"
   assume_role_policy = data.aws_iam_policy_document.irsa_assume["user-service"].json
@@ -69,6 +65,7 @@ resource "aws_iam_role_policy" "user_service" {
   name = "${var.name_prefix}-user-service"
   role = aws_iam_role.user_service.id
 
+  # Least privilege: only the JWT signing secret + RDS credentials secret
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -88,7 +85,6 @@ resource "aws_iam_role_policy" "user_service" {
   })
 }
 
-# --- order-service: DB secret, SNS publish, EventBridge put ---
 resource "aws_iam_role" "order_service" {
   name               = "${var.name_prefix}-irsa-order-service"
   assume_role_policy = data.aws_iam_policy_document.irsa_assume["order-service"].json
@@ -102,6 +98,12 @@ resource "aws_iam_role_policy" "order_service" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      {
+        Sid      = "ReadJwtSecret"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+        Resource = [var.jwt_secret_arn]
+      },
       {
         Sid      = "ReadDbSecret"
         Effect   = "Allow"
@@ -124,7 +126,6 @@ resource "aws_iam_role_policy" "order_service" {
   })
 }
 
-# --- catalogue-service: DynamoDB + S3 assets ---
 resource "aws_iam_role" "catalogue_service" {
   name               = "${var.name_prefix}-irsa-catalogue-service"
   assume_role_policy = data.aws_iam_policy_document.irsa_assume["catalogue-service"].json
@@ -138,6 +139,12 @@ resource "aws_iam_role_policy" "catalogue_service" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      {
+        Sid      = "ReadJwtSecret"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+        Resource = [var.jwt_secret_arn]
+      },
       {
         Sid    = "DynamoDBCatalogue"
         Effect = "Allow"
@@ -173,6 +180,29 @@ resource "aws_iam_role_policy" "catalogue_service" {
         Effect   = "Allow"
         Action   = ["s3:ListBucket"]
         Resource = [var.assets_bucket_arn]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role" "gateway" {
+  name               = "${var.name_prefix}-irsa-gateway"
+  assume_role_policy = data.aws_iam_policy_document.irsa_assume["gateway"].json
+  tags               = merge(local.tags, { Service = "gateway" })
+}
+
+resource "aws_iam_role_policy" "gateway" {
+  name = "${var.name_prefix}-gateway"
+  role = aws_iam_role.gateway.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadJwtSecret"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+        Resource = [var.jwt_secret_arn]
       }
     ]
   })
