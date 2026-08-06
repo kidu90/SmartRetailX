@@ -1,0 +1,15 @@
+{
+  "name": "@smartretailx/events",
+  "version": "1.0.0",
+  "description": "Shared event types, local bus, SNS publisher and SQS consumer helpers",
+  "main": "src/index.js",
+  "files": ["src"],
+  "dependencies": {
+    "@aws-sdk/client-sns": "^3.650.0",
+    "@aws-sdk/client-sqs": "^3.650.0",
+    "uuid": "^10.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

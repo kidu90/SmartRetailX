@@ -14,11 +14,17 @@
     "test:catalogue": "npm test --workspace=catalogue-service",
     "test:order": "npm test --workspace=order-service",
     "test:gateway": "npm test --workspace=gateway",
+    "test:inventory": "npm test --workspace=inventory-service",
+    "test:notification": "npm test --workspace=notification-service",
+    "test:payment": "npm test --workspace=payment-service",
     "test:auth": "npm test --workspace=@smartretailx/auth-middleware",
     "start:user": "npm start --workspace=user-service",
     "start:catalogue": "npm start --workspace=catalogue-service",
     "start:order": "npm start --workspace=order-service",
-    "start:gateway": "npm start --workspace=gateway"
+    "start:gateway": "npm start --workspace=gateway",
+    "start:inventory": "npm start --workspace=inventory-service",
+    "start:payment": "npm start --workspace=payment-service",
+    "start:notification": "npm start --workspace=notification-service"
   },
   "engines": {
     "node": ">=18"

@@ -5,7 +5,7 @@
 # (unlike always-on MSK/Rabbit). SQS long polling (20s) reduces empty receives.
 # EventBridge custom bus is free for AWS-service events; custom events are
 # cheap per million. Dead-letter queues prevent poison messages from burning
-# Lambda retries.
+# Lambda retries. Separate queues per consumer isolate failures.
 
 terraform {
   required_version = ">= 1.5.0"
@@ -24,6 +24,25 @@ locals {
   tags = merge(var.tags, {
     Module = "messaging"
   })
+
+  consumer_queues = {
+    notification = {
+      name    = "${var.name_prefix}-notification"
+      service = "notification-service"
+    }
+    inventory = {
+      name    = "${var.name_prefix}-inventory"
+      service = "inventory-service"
+    }
+    payment = {
+      name    = "${var.name_prefix}-payment"
+      service = "payment-service"
+    }
+    order = {
+      name    = "${var.name_prefix}-order-saga"
+      service = "order-service"
+    }
+  }
 }
 
 resource "aws_sns_topic" "order_events" {
@@ -32,40 +51,47 @@ resource "aws_sns_topic" "order_events" {
 
   tags = merge(local.tags, {
     Name    = "${var.name_prefix}-order-events"
-    Purpose = "order.status.changed"
+    Purpose = "platform-domain-events"
   })
 }
 
-resource "aws_sqs_queue" "notification_dlq" {
-  name                      = "${var.name_prefix}-notification-dlq"
+resource "aws_sqs_queue" "dlq" {
+  for_each = local.consumer_queues
+
+  name                      = "${each.value.name}-dlq"
   message_retention_seconds = 1209600
   kms_master_key_id         = var.kms_key_id
 
   tags = merge(local.tags, {
-    Name = "${var.name_prefix}-notification-dlq"
+    Name    = "${each.value.name}-dlq"
+    Service = each.value.service
   })
 }
 
-resource "aws_sqs_queue" "notification" {
-  name                       = "${var.name_prefix}-notification"
+resource "aws_sqs_queue" "consumer" {
+  for_each = local.consumer_queues
+
+  name                       = each.value.name
   visibility_timeout_seconds = var.notification_visibility_timeout
   receive_wait_time_seconds  = 20
   message_retention_seconds  = 345600
   kms_master_key_id          = var.kms_key_id
 
   redrive_policy = jsonencode({
-    deadLetterTargetArn = aws_sqs_queue.notification_dlq.arn
+    deadLetterTargetArn = aws_sqs_queue.dlq[each.key].arn
     maxReceiveCount     = 3
   })
 
   tags = merge(local.tags, {
-    Name    = "${var.name_prefix}-notification"
-    Service = "notification-service"
+    Name    = each.value.name
+    Service = each.value.service
   })
 }
 
-resource "aws_sqs_queue_policy" "notification" {
-  queue_url = aws_sqs_queue.notification.id
+resource "aws_sqs_queue_policy" "consumer" {
+  for_each = local.consumer_queues
+
+  queue_url = aws_sqs_queue.consumer[each.key].id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -77,7 +103,7 @@ resource "aws_sqs_queue_policy" "notification" {
           Service = "sns.amazonaws.com"
         }
         Action   = "sqs:SendMessage"
-        Resource = aws_sqs_queue.notification.arn
+        Resource = aws_sqs_queue.consumer[each.key].arn
         Condition = {
           ArnEquals = {
             "aws:SourceArn" = aws_sns_topic.order_events.arn
@@ -88,10 +114,12 @@ resource "aws_sqs_queue_policy" "notification" {
   })
 }
 
-resource "aws_sns_topic_subscription" "order_to_notification" {
+resource "aws_sns_topic_subscription" "consumer" {
+  for_each = local.consumer_queues
+
   topic_arn = aws_sns_topic.order_events.arn
   protocol  = "sqs"
-  endpoint  = aws_sqs_queue.notification.arn
+  endpoint  = aws_sqs_queue.consumer[each.key].arn
 }
 
 resource "aws_cloudwatch_event_bus" "smartretailx" {
@@ -109,7 +137,7 @@ resource "aws_cloudwatch_event_rule" "order_status_changed" {
 
   event_pattern = jsonencode({
     source      = ["smartretailx.order-service"]
-    detail-type = ["order.status.changed"]
+    detail-type = ["order.status_changed", "order.status.changed"]
   })
 
   tags = local.tags

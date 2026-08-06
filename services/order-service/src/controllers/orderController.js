@@ -2,6 +2,10 @@ const { ROLES } = require('@smartretailx/auth-middleware');
 const orderService = require('../services/orderService');
 const AppError = require('../utils/AppError');
 
+function getPublisher(req) {
+  return req.app.locals.publisher;
+}
+
 async function create(req, res, next) {
   try {
     const userId =
@@ -11,7 +15,10 @@ async function create(req, res, next) {
       throw new AppError('Customers may only create orders for themselves', 403);
     }
 
-    const order = await orderService.createOrder({ ...req.body, userId });
+    const order = await orderService.createOrder(
+      { ...req.body, userId },
+      getPublisher(req)
+    );
     res.status(201).json(order);
   } catch (err) {
     next(err);
@@ -41,7 +48,11 @@ async function getById(req, res, next) {
 
 async function updateStatus(req, res, next) {
   try {
-    const order = orderService.updateOrderStatus(req.params.id, req.body.status);
+    const order = await orderService.updateOrderStatus(
+      req.params.id,
+      req.body.status,
+      getPublisher(req)
+    );
     res.status(200).json(order);
   } catch (err) {
     next(err);

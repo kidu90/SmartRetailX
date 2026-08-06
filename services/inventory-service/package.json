@@ -1,7 +1,7 @@
 {
-  "name": "order-service",
+  "name": "inventory-service",
   "version": "1.0.0",
-  "description": "SmartRetailX order service – orders, status, catalogue/payment REST, events",
+  "description": "Consumes order events, manages stock reservations, publishes inventory.updated",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -10,20 +10,14 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@smartretailx/auth-middleware": "*",
     "@smartretailx/events": "*",
-    "@smartretailx/secrets-client": "*",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
     "helmet": "^7.1.0",
-    "jsonwebtoken": "^9.0.2",
     "pino": "^9.4.0",
     "pino-http": "^10.3.0",
-    "swagger-ui-express": "^5.0.1",
-    "uuid": "^10.0.0",
-    "yamljs": "^0.3.0",
-    "zod": "^3.23.8"
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",

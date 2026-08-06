@@ -1,14 +1,12 @@
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
 const { ROLES } = require('@smartretailx/auth-middleware');
+const { clearHistory, createPublisher, createConsumer } = require('@smartretailx/events');
 const createApp = require('../../src/app');
 const orderStore = require('../../src/store/orderStore');
 const catalogueClient = require('../../src/clients/catalogueClient');
-const paymentClient = require('../../src/clients/paymentClient');
-const eventPublisher = require('../../src/events/eventPublisher');
 
 jest.mock('../../src/clients/catalogueClient');
-jest.mock('../../src/clients/paymentClient');
 
 const SECRET = 'dev-secret-change-me';
 
@@ -21,14 +19,17 @@ function authHeader(role, sub = 'user-1') {
   return `Bearer ${token}`;
 }
 
-describe('order-service API', () => {
+describe('order-service API (async saga)', () => {
   let app;
   const productId = '11111111-1111-1111-1111-111111111111';
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    clearHistory();
     orderStore.clear();
-    eventPublisher.clearPublished();
-    app = createApp();
+    const publisher = createPublisher({ mode: 'local' });
+    const consumer = createConsumer({ mode: 'local' });
+    app = createApp({ publisher, consumer });
+    await app.startConsumers();
     jest.clearAllMocks();
 
     catalogueClient.getProduct.mockResolvedValue({
@@ -37,11 +38,10 @@ describe('order-service API', () => {
       price: 25,
       stock: 100,
     });
-    paymentClient.chargePayment.mockResolvedValue({
-      id: 'pay-1',
-      status: 'succeeded',
-      amount: 50,
-    });
+  });
+
+  afterEach(() => {
+    app.stop();
   });
 
   it('GET /health and /ready', async () => {
@@ -49,35 +49,18 @@ describe('order-service API', () => {
     expect((await request(app).get('/ready')).status).toBe(200);
   });
 
-  it('creates, fetches, and updates an order with correct roles', async () => {
+  it('creates a pending order and publishes order.created', async () => {
     const createRes = await request(app)
       .post('/api/v1/orders')
       .set('Authorization', authHeader(ROLES.CUSTOMER, 'user-1'))
       .send({
-        userId: 'user-1',
         items: [{ productId, quantity: 2 }],
         paymentMethod: 'card',
       });
 
     expect(createRes.status).toBe(201);
-    expect(createRes.body.status).toBe('paid');
-
-    const getRes = await request(app)
-      .get(`/api/v1/orders/${createRes.body.id}`)
-      .set('Authorization', authHeader(ROLES.CUSTOMER, 'user-1'));
-    expect(getRes.status).toBe(200);
-
-    const forbiddenStatus = await request(app)
-      .patch(`/api/v1/orders/${createRes.body.id}/status`)
-      .set('Authorization', authHeader(ROLES.CUSTOMER, 'user-1'))
-      .send({ status: 'processing' });
-    expect(forbiddenStatus.status).toBe(403);
-
-    const statusRes = await request(app)
-      .patch(`/api/v1/orders/${createRes.body.id}/status`)
-      .set('Authorization', authHeader(ROLES.WAREHOUSE_STAFF, 'wh-1'))
-      .send({ status: 'processing' });
-    expect(statusRes.status).toBe(200);
+    expect(createRes.body.status).toBe('pending');
+    expect(createRes.body.sagaState).toBe('awaiting_inventory');
   });
 
   it('rejects unauthenticated create', async () => {

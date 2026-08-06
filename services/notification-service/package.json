@@ -1,7 +1,7 @@
 {
-  "name": "order-service",
+  "name": "notification-service",
   "version": "1.0.0",
-  "description": "SmartRetailX order service – orders, status, catalogue/payment REST, events",
+  "description": "Real-time notifications via SQS/SNS and WebSockets",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -10,23 +10,18 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@smartretailx/auth-middleware": "*",
     "@smartretailx/events": "*",
-    "@smartretailx/secrets-client": "*",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
     "helmet": "^7.1.0",
-    "jsonwebtoken": "^9.0.2",
     "pino": "^9.4.0",
     "pino-http": "^10.3.0",
-    "swagger-ui-express": "^5.0.1",
-    "uuid": "^10.0.0",
-    "yamljs": "^0.3.0",
-    "zod": "^3.23.8"
+    "socket.io": "^4.7.5"
   },
   "devDependencies": {
     "jest": "^29.7.0",
+    "socket.io-client": "^4.7.5",
     "supertest": "^7.0.0"
   },
   "engines": {

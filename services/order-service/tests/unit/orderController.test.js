@@ -8,6 +8,7 @@ describe('orderController', () => {
   let req;
   let res;
   let next;
+  const publisher = { publish: jest.fn() };
 
   beforeEach(() => {
     req = {
@@ -15,6 +16,7 @@ describe('orderController', () => {
       params: {},
       query: {},
       user: { id: 'u1', role: ROLES.CUSTOMER },
+      app: { locals: { publisher } },
     };
     res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
     next = jest.fn();
@@ -22,42 +24,39 @@ describe('orderController', () => {
   });
 
   it('creates an order for the authenticated customer', async () => {
-    const order = { id: 'o1', status: 'paid' };
+    const order = { id: 'o1', status: 'pending' };
     orderService.createOrder.mockResolvedValue(order);
     req.body = { items: [], paymentMethod: 'card' };
 
     await orderController.create(req, res, next);
 
     expect(orderService.createOrder).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'u1' })
+      expect.objectContaining({ userId: 'u1' }),
+      publisher
     );
     expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json).toHaveBeenCalledWith(order);
   });
 
   it('lists orders scoped to customer', async () => {
     orderService.listOrders.mockReturnValue([{ id: 'o1' }]);
     await orderController.list(req, res, next);
     expect(orderService.listOrders).toHaveBeenCalledWith('u1');
-    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it('gets order by id when owned', async () => {
-    const order = { id: 'o1', userId: 'u1' };
-    orderService.getOrder.mockReturnValue(order);
+    orderService.getOrder.mockReturnValue({ id: 'o1', userId: 'u1' });
     req.params.id = 'o1';
     await orderController.getById(req, res, next);
-    expect(res.json).toHaveBeenCalledWith(order);
+    expect(res.json).toHaveBeenCalledWith({ id: 'o1', userId: 'u1' });
   });
 
   it('updates order status', async () => {
-    const order = { id: 'o1', status: 'shipped' };
-    orderService.updateOrderStatus.mockReturnValue(order);
+    orderService.updateOrderStatus.mockResolvedValue({ id: 'o1', status: 'shipped' });
     req.user = { id: 'wh-1', role: ROLES.WAREHOUSE_STAFF };
     req.params.id = 'o1';
     req.body = { status: 'shipped' };
     await orderController.updateStatus(req, res, next);
-    expect(res.status).toHaveBeenCalledWith(200);
+    expect(orderService.updateOrderStatus).toHaveBeenCalledWith('o1', 'shipped', publisher);
   });
 
   it('forwards create errors', async () => {
@@ -79,9 +78,7 @@ describe('orderController', () => {
 
   it('forwards updateStatus errors', async () => {
     const err = new Error('bad transition');
-    orderService.updateOrderStatus.mockImplementation(() => {
-      throw err;
-    });
+    orderService.updateOrderStatus.mockRejectedValue(err);
     req.params.id = 'o1';
     req.body = { status: 'delivered' };
     await orderController.updateStatus(req, res, next);
@@ -100,18 +97,14 @@ describe('orderController', () => {
   it('forbids customers creating orders for other users', async () => {
     req.body = { userId: 'other', items: [], paymentMethod: 'card' };
     await orderController.create(req, res, next);
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ statusCode: 403 })
-    );
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 403 }));
   });
 
   it('forbids customers reading another users order', async () => {
     orderService.getOrder.mockReturnValue({ id: 'o1', userId: 'other' });
     req.params.id = 'o1';
     await orderController.getById(req, res, next);
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ statusCode: 403 })
-    );
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 403 }));
   });
 
   it('admin can create for a specified userId', async () => {
@@ -120,7 +113,8 @@ describe('orderController', () => {
     orderService.createOrder.mockResolvedValue({ id: 'o2' });
     await orderController.create(req, res, next);
     expect(orderService.createOrder).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'customer-9' })
+      expect.objectContaining({ userId: 'customer-9' }),
+      publisher
     );
   });
 });

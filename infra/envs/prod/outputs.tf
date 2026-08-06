@@ -38,6 +38,18 @@ output "sqs_notification_arn" {
   value = module.messaging.notification_queue_arn
 }
 
+output "sqs_inventory_url" {
+  value = module.messaging.inventory_queue_url
+}
+
+output "sqs_payment_url" {
+  value = module.messaging.payment_queue_url
+}
+
+output "sqs_order_saga_url" {
+  value = module.messaging.order_saga_queue_url
+}
+
 output "event_bus_name" {
   value = module.messaging.event_bus_name
 }

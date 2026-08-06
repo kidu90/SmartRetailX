@@ -1,17 +1,15 @@
 const { loadServiceSecrets } = require('@smartretailx/secrets-client');
-const createApp = require('./app');
+const createExpressApp = require('./app');
 const config = require('./config');
 const logger = require('./utils/logger');
 
 async function main() {
   const secrets = await loadServiceSecrets();
   config.applySecrets(secrets);
-  if (secrets.database?.host) {
-    logger.info({ host: secrets.database.host }, 'DB credentials loaded');
-  }
-  const app = createApp();
+  const app = createExpressApp();
+  await app.startConsumers();
   app.listen(config.port, () => {
-    logger.info({ port: config.port }, 'order-service listening');
+    logger.info({ port: config.port, mode: config.eventingMode }, 'order-service listening');
   });
 }
 
