@@ -18,6 +18,8 @@
     "test:notification": "npm test --workspace=notification-service",
     "test:payment": "npm test --workspace=payment-service",
     "test:auth": "npm test --workspace=@smartretailx/auth-middleware",
+    "test:resilient-http": "npm test --workspace=@smartretailx/resilient-http",
+    "test:newman": "npx --yes newman run testing/postman/SmartRetailX-Full.postman_collection.json --reporters cli",
     "start:user": "npm start --workspace=user-service",
     "start:catalogue": "npm start --workspace=catalogue-service",
     "start:order": "npm start --workspace=order-service",

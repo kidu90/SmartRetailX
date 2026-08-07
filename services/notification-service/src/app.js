@@ -3,8 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const { Server } = require('socket.io');
-const pinoHttp = require('pino-http');
 const { createConsumer, EventTypes } = require('@smartretailx/events');
+const { instrumentExpress } = require('@smartretailx/observability');
 const config = require('./config');
 const logger = require('./utils/logger');
 const { createRealtimeBridge } = require('./realtimeBridge');
@@ -26,12 +26,7 @@ function createApp(options = {}) {
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors());
   app.use(express.json());
-  app.use(
-    pinoHttp({
-      logger,
-      autoLogging: { ignore: (req) => req.url === '/health' || req.url === '/ready' },
-    })
-  );
+  instrumentExpress(app, { serviceName: 'notification-service', logger });
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok', service: 'notification-service' });

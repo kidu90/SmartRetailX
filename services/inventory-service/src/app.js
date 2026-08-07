@@ -1,12 +1,12 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const pinoHttp = require('pino-http');
 const {
   createConsumer,
   createPublisher,
   EventTypes,
 } = require('@smartretailx/events');
+const { instrumentExpress } = require('@smartretailx/observability');
 const config = require('./config');
 const logger = require('./utils/logger');
 const inventoryStore = require('./store/inventoryStore');
@@ -33,12 +33,7 @@ function createApp(options = {}) {
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors());
   app.use(express.json());
-  app.use(
-    pinoHttp({
-      logger,
-      autoLogging: { ignore: (req) => req.url === '/health' || req.url === '/ready' },
-    })
-  );
+  instrumentExpress(app, { serviceName: 'inventory-service', logger });
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok', service: 'inventory-service' });

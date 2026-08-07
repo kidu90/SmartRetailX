@@ -94,3 +94,8 @@ output "acm_certificate_arn" {
 output "irsa_gateway_role_arn" {
   value = module.iam.gateway_role_arn
 }
+
+output "ops_alerts_topic_arn" {
+  value       = module.cloudwatch_alarms.ops_alerts_topic_arn
+  description = "SNS topic for CloudWatch ops alarms (5xx, latency, pod restarts)"
+}

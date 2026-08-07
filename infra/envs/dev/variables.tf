@@ -51,3 +51,9 @@ variable "acm_certificate_arn_us_east_1" {
   type        = string
   default     = null
 }
+
+variable "alb_arn_suffix" {
+  description = "ALB CloudWatch dimension (app/name/id) — set after ALB is provisioned"
+  type        = string
+  default     = ""
+}

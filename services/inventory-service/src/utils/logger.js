@@ -1,4 +1,7 @@
-const pino = require('pino');
+const { createLogger } = require('@smartretailx/logger');
 const config = require('../config');
 
-module.exports = pino({ level: config.logLevel, name: config.serviceName });
+module.exports = createLogger({
+  serviceName: config.serviceName || 'inventory-service',
+  level: config.logLevel || 'info',
+});

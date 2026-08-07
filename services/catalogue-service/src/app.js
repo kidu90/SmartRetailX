@@ -4,7 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
-const pinoHttp = require('pino-http');
+const { instrumentExpress } = require('@smartretailx/observability');
 const logger = require('./utils/logger');
 const routes = require('./routes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
@@ -18,12 +18,7 @@ function createApp() {
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors());
   app.use(express.json());
-  app.use(
-    pinoHttp({
-      logger,
-      autoLogging: { ignore: (req) => req.url === '/health' || req.url === '/ready' },
-    })
-  );
+  instrumentExpress(app, { serviceName: 'catalogue-service', logger });
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok', service: 'catalogue-service' });

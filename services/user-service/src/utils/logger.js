@@ -1,13 +1,7 @@
-const pino = require('pino');
+const { createLogger } = require('@smartretailx/logger');
 const config = require('../config');
 
-const logger = pino({
+module.exports = createLogger({
+  serviceName: config.serviceName,
   level: config.logLevel,
-  name: config.serviceName,
-  transport:
-    config.nodeEnv === 'development'
-      ? { target: 'pino/file', options: { destination: 1 } }
-      : undefined,
 });
-
-module.exports = logger;

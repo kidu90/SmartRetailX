@@ -6,7 +6,9 @@ const {
   createPublisher,
   EventTypes,
 } = require('@smartretailx/events');
+const { instrumentExpress } = require('@smartretailx/observability');
 const config = require('./config');
+const logger = require('./utils/logger');
 const { createPaymentHandlers } = require('./handlers');
 
 function createApp(options = {}) {
@@ -26,6 +28,7 @@ function createApp(options = {}) {
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors());
   app.use(express.json());
+  instrumentExpress(app, { serviceName: 'payment-service', logger });
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok', service: 'payment-service' });

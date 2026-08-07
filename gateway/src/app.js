@@ -2,28 +2,12 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const swaggerUi = require('swagger-ui-express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
-const pinoHttp = require('pino-http');
 const { ROLES, authenticate, requireRoles } = require('@smartretailx/auth-middleware');
+const { instrumentExpress } = require('@smartretailx/observability');
 const config = require('./config');
 const logger = require('./utils/logger');
 const { buildAggregatedSwagger } = require('./swagger/aggregate');
-
-function createProxy(target) {
-  return createProxyMiddleware({
-    target,
-    changeOrigin: true,
-    on: {
-      error(err, _req, res) {
-        logger.error({ err, target }, 'Proxy error');
-        if (!res.headersSent) {
-          res.writeHead(502, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: { message: 'Bad gateway', target } }));
-        }
-      },
-    },
-  });
-}
+const { createResilientProxy } = require('./proxy');
 
 function createApp() {
   const app = express();
@@ -34,12 +18,14 @@ function createApp() {
 
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors());
-  app.use(
-    pinoHttp({
-      logger,
-      autoLogging: { ignore: (req) => req.url === '/health' || req.url === '/ready' },
-    })
+  instrumentExpress(app, { serviceName: 'gateway', logger });
+
+  const usersProxy = createResilientProxy(config.userServiceUrl, 'user-service');
+  const catalogueProxy = createResilientProxy(
+    config.catalogueServiceUrl,
+    'catalogue-service'
   );
+  const ordersProxy = createResilientProxy(config.orderServiceUrl, 'order-service');
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok', service: 'gateway' });
@@ -53,16 +39,19 @@ function createApp() {
         catalogue: config.catalogueServiceUrl,
         orders: config.orderServiceUrl,
       },
+      breakers: {
+        users: usersProxy.status(),
+        catalogue: catalogueProxy.status(),
+        orders: ordersProxy.status(),
+      },
     });
   });
 
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
   app.get('/swagger.json', (_req, res) => res.json(swaggerDocument));
 
-  // Public auth endpoints (register/login/refresh) — no JWT required
-  app.use('/users', createProxy(config.userServiceUrl));
+  app.use('/users', usersProxy);
 
-  // Catalogue reads are public; mutations checked here then re-checked upstream
   app.use('/catalogue', (req, res, next) => {
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
       return requireAuth(req, res, (err) => {
@@ -71,10 +60,9 @@ function createApp() {
       });
     }
     return next();
-  }, createProxy(config.catalogueServiceUrl));
+  }, catalogueProxy);
 
-  // All order traffic requires a valid token + allowed role
-  app.use('/orders', requireAuth, requireOrderAccess, createProxy(config.orderServiceUrl));
+  app.use('/orders', requireAuth, requireOrderAccess, ordersProxy);
 
   app.use((_req, res) => {
     res.status(404).json({

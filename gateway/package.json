@@ -20,7 +20,12 @@
     "jsonwebtoken": "^9.0.2",
     "pino": "^9.4.0",
     "pino-http": "^10.3.0",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "@smartretailx/logger": "*",
+    "@smartretailx/metrics": "*",
+    "@smartretailx/tracing": "*",
+    "@smartretailx/observability": "*",
+    "@smartretailx/resilient-http": "*"
   },
   "devDependencies": {
     "jest": "^29.7.0",

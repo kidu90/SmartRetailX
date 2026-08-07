@@ -1,0 +1,10 @@
+{
+  "name": "smartretailx-postman-tests",
+  "private": true,
+  "scripts": {
+    "test": "newman run SmartRetailX-Full.postman_collection.json --reporters cli"
+  },
+  "devDependencies": {
+    "newman": "^6.2.1"
+  }
+}

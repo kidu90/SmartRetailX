@@ -1,0 +1,16 @@
+{
+  "name": "@smartretailx/resilient-http",
+  "version": "1.0.0",
+  "description": "Retry + opossum circuit breaker for inter-service HTTP",
+  "main": "src/index.js",
+  "files": ["src"],
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "opossum": "^8.4.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

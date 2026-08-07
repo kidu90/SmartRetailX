@@ -153,3 +153,12 @@ module "iam" {
   assets_bucket_arn      = module.s3.bucket_arn
   tags                   = local.tags
 }
+
+module "cloudwatch_alarms" {
+  source = "../../modules/cloudwatch-alarms"
+
+  name_prefix      = var.name_prefix
+  eks_cluster_name = module.eks.cluster_name
+  alb_arn_suffix   = var.alb_arn_suffix
+  tags             = local.tags
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@smartretailx/observability",
+  "version": "1.0.0",
+  "description": "One-call logger + metrics + tracing mount for Express apps",
+  "main": "src/index.js",
+  "files": ["src"],
+  "dependencies": {
+    "@smartretailx/logger": "*",
+    "@smartretailx/metrics": "*",
+    "@smartretailx/tracing": "*",
+    "pino-http": "^10.3.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,9 +1,11 @@
 const { loadServiceSecrets } = require('@smartretailx/secrets-client');
+const { initTracing } = require('@smartretailx/tracing');
 const createApp = require('./app');
 const config = require('./config');
 const logger = require('./utils/logger');
 
 async function main() {
+  await initTracing('user-service');
   const secrets = await loadServiceSecrets();
   config.applySecrets(secrets);
 
@@ -21,7 +23,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  // eslint-disable-next-line no-console
   console.error('Failed to start user-service', err);
   process.exit(1);
 });

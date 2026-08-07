@@ -1,4 +1,5 @@
 const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns');
+const { createResilientClient } = require('@smartretailx/resilient-http');
 const { publishLocal } = require('./localBus');
 const { createEvent } = require('./types');
 
@@ -26,6 +27,27 @@ function createPublisher(options = {}) {
       ? new SNSClient({ region: process.env.AWS_REGION || 'ap-south-1' })
       : null;
 
+  const fanoutClients = new Map();
+  function clientFor(url) {
+    if (!fanoutClients.has(url)) {
+      fanoutClients.set(
+        url,
+        createResilientClient({
+          name: `event-fanout:${url}`,
+          timeoutMs: 2000,
+          retries: 1,
+          breakerOptions: {
+            volumeThreshold: 3,
+            errorThresholdPercentage: 50,
+            resetTimeout: 10000,
+          },
+          fallback: async () => ({ ok: false, status: 503, fallback: true }),
+        })
+      );
+    }
+    return fanoutClients.get(url);
+  }
+
   async function publish(type, payload, meta = {}) {
     const event = createEvent(type, payload, meta);
 
@@ -37,13 +59,12 @@ function createPublisher(options = {}) {
       await Promise.all(
         httpTargets.map(async (url) => {
           try {
-            await fetch(url, {
+            await clientFor(url).fetch(url, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(event),
             });
           } catch (err) {
-            // Best-effort fan-out in local/docker
             if (process.env.NODE_ENV !== 'test') {
               console.warn(`Event HTTP fan-out failed for ${url}:`, err.message);
             }

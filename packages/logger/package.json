@@ -1,0 +1,13 @@
+{
+  "name": "@smartretailx/logger",
+  "version": "1.0.0",
+  "description": "Structured JSON logger (pino) for CloudWatch Logs / ELK",
+  "main": "src/index.js",
+  "files": ["src"],
+  "dependencies": {
+    "pino": "^9.4.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
