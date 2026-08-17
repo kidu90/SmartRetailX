@@ -10,7 +10,8 @@ const orderStore = {
   },
   list(userId) {
     const all = [...orders.values()];
-    if (!userId) return all;
+    // Only an explicit undefined/null means "all" (admin listing). Empty string must not leak.
+    if (userId === undefined || userId === null) return all;
     return all.filter((o) => o.userId === userId);
   },
   update(id, updates) {

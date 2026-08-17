@@ -40,6 +40,11 @@ output "order_saga_queue_url" {
   value = aws_sqs_queue.consumer["order"].url
 }
 
+output "consumer_queue_names" {
+  description = "SQS queue names for CloudWatch dashboards/alarms"
+  value       = { for k, q in aws_sqs_queue.consumer : k => q.name }
+}
+
 output "event_bus_name" {
   value = aws_cloudwatch_event_bus.smartretailx.name
 }

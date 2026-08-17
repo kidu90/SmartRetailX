@@ -70,6 +70,25 @@ The gateway provides a consolidated Swagger UI containing all available service 
 
 ---
 
+## Frontend (React + Vite)
+
+UI lives in `frontend/` and talks to the API Gateway (`http://localhost:3000`) and
+notification-service WebSockets (`http://localhost:3006`).
+
+```bash
+# Start backend services first (see below), then:
+cd frontend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+Open http://localhost:5173 — see `frontend/README.md` for screens mapped to assignment tasks.
+
+Docker Compose also serves the built SPA at **http://localhost:8080**.
+
+---
+
 ## Running the Application with Docker
 
 ### Prerequisites
@@ -83,7 +102,7 @@ From the root directory of the project:
 docker compose up --build
 ```
 
-This command builds and starts all services on the shared Docker network.
+This command builds and starts all services on the shared Docker network (including `frontend` on port 8080).
 
 ### Health Check
 
@@ -391,16 +410,15 @@ This allows the platform to handle traffic spikes while controlling infrastructu
 
 Several mechanisms are used to improve resilience:
 
-- Multi-AZ deployment
-- Pod Disruption Budgets
-- Rolling updates
-- Health checks
-- Load balancing
-- Auto-scaling
+- **opossum** retry + circuit breakers on inter-service HTTP (`packages/resilient-http`) — see `RESILIENCE.md`
+- Multi-AZ EKS node groups + Aurora
+- Pod Disruption Budgets + HPA
+- Rolling updates, health checks, load balancing
+- DR targets and Aurora/S3 restore story — see `DR.md`
 
-If a node fails, Kubernetes automatically schedules replacement pods on healthy nodes.
+If a node fails, Kubernetes schedules replacement pods on healthy nodes. Readiness probes ensure traffic only reaches healthy instances.
 
-Readiness probes ensure that traffic is only sent to healthy application instances.
+Observability is **CloudWatch-native** (Logs, Container Insights, EMF, X-Ray, dashboards, alarms) — see `OBSERVABILITY.md`.
 
 ---
 

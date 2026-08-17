@@ -9,7 +9,7 @@ const {
   createConsumer,
   EventTypes,
 } = require('@smartretailx/events');
-const { instrumentExpress } = require('@smartretailx/observability');
+const { instrumentExpress, closeTracing } = require('@smartretailx/observability');
 const logger = require('./utils/logger');
 const routes = require('./routes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
@@ -66,6 +66,7 @@ function createApp(options = {}) {
 
   app.use('/api/v1', routes);
 
+  closeTracing(app);
   app.use(notFoundHandler);
   app.use(errorHandler);
 

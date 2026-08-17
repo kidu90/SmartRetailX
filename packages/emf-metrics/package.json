@@ -1,0 +1,13 @@
+{
+  "name": "@smartretailx/emf-metrics",
+  "version": "1.0.0",
+  "description": "CloudWatch Embedded Metric Format (EMF) helpers for SmartRetailX",
+  "main": "src/index.js",
+  "files": ["src"],
+  "dependencies": {
+    "aws-embedded-metrics": "^4.2.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

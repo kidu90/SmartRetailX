@@ -160,5 +160,29 @@ module "cloudwatch_alarms" {
   name_prefix      = var.name_prefix
   eks_cluster_name = module.eks.cluster_name
   alb_arn_suffix   = var.alb_arn_suffix
-  tags             = local.tags
+  alert_email      = var.alert_email
+  sqs_queue_names = [
+    module.messaging.consumer_queue_names["order"],
+    module.messaging.consumer_queue_names["inventory"],
+    module.messaging.consumer_queue_names["payment"],
+    module.messaging.consumer_queue_names["notification"],
+  ]
+  tags = local.tags
+}
+
+module "monitoring" {
+  source = "../../modules/monitoring"
+
+  name_prefix        = var.name_prefix
+  eks_cluster_name   = module.eks.cluster_name
+  oidc_provider_arn  = module.eks.oidc_provider_arn
+  oidc_provider_url  = module.eks.oidc_provider_url
+  log_retention_days = 30
+  sqs_queue_names = [
+    module.messaging.consumer_queue_names["order"],
+    module.messaging.consumer_queue_names["inventory"],
+    module.messaging.consumer_queue_names["payment"],
+    module.messaging.consumer_queue_names["notification"],
+  ]
+  tags = local.tags
 }

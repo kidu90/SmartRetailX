@@ -1,7 +1,7 @@
 {
   "name": "@smartretailx/metrics",
   "version": "1.0.0",
-  "description": "Prometheus metrics (prom-client) for SmartRetailX services",
+  "description": "Local /metrics (prom-client) for health checks; CloudWatch custom metrics use @smartretailx/emf-metrics",
   "main": "src/index.js",
   "files": ["src"],
   "dependencies": {

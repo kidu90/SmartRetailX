@@ -4,7 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const { Server } = require('socket.io');
 const { createConsumer, EventTypes } = require('@smartretailx/events');
-const { instrumentExpress } = require('@smartretailx/observability');
+const { instrumentExpress, closeTracing } = require('@smartretailx/observability');
 const config = require('./config');
 const logger = require('./utils/logger');
 const { createRealtimeBridge } = require('./realtimeBridge');
@@ -55,6 +55,8 @@ function createApp(options = {}) {
   ]) {
     consumer.on(type, (event) => bridge.handleEvent(event));
   }
+
+  closeTracing(app);
 
   return {
     app,

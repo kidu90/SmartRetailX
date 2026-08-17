@@ -1,0 +1,14 @@
+{
+  "name": "@smartretailx/newman-api-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Newman (Postman CLI) API tests + HTML evidence reports for SmartRetailX",
+  "scripts": {
+    "test:api": "mkdir -p reports && newman run smartretailx.postman_collection.json -e dev.postman_environment.json --reporters cli,htmlextra --reporter-htmlextra-export ./reports/newman-report.html --reporter-htmlextra-title \"SmartRetailX API Test Report\" --reporter-htmlextra-darkTheme",
+    "test": "npm run test:api"
+  },
+  "devDependencies": {
+    "newman": "^6.2.1",
+    "newman-reporter-htmlextra": "^1.23.1"
+  }
+}

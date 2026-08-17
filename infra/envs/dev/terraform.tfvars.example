@@ -5,3 +5,5 @@ vpc_cidr           = "10.10.0.0/16"
 domain_name        = "dev.smartretailx.example.com"
 assets_bucket_name = "smartretailx-dev-assets-CHANGE_ME"
 create_route53_zone = true
+# alert_email = "you@example.com"   # SNS subscription for CloudWatch alarm emails
+# alb_arn_suffix = "app/xxx/yyy"    # set after ALB exists

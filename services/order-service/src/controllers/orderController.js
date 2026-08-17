@@ -8,10 +8,22 @@ function getPublisher(req) {
 
 async function create(req, res, next) {
   try {
+    // Customers always order as themselves (ignore spoofed body.userId).
+    // Admins may place on behalf of a userId when provided.
     const userId =
-      req.user.role === ROLES.CUSTOMER ? req.user.id : req.body.userId || req.user.id;
+      req.user.role === ROLES.ADMIN
+        ? req.body.userId || req.user.id
+        : req.user.id;
 
-    if (req.user.role === ROLES.CUSTOMER && req.body.userId && req.body.userId !== req.user.id) {
+    if (!userId) {
+      throw new AppError('Authenticated user id missing from token', 401);
+    }
+
+    if (
+      req.user.role !== ROLES.ADMIN &&
+      req.body.userId &&
+      req.body.userId !== req.user.id
+    ) {
       throw new AppError('Customers may only create orders for themselves', 403);
     }
 
@@ -21,14 +33,28 @@ async function create(req, res, next) {
     );
     res.status(201).json(order);
   } catch (err) {
+    try {
+      const { recordCheckoutFailure } = require('@smartretailx/emf-metrics');
+      recordCheckoutFailure('order-service', err.message || 'create_failed').catch(() => {});
+    } catch {
+      /* optional */
+    }
     next(err);
   }
 }
 
 async function list(req, res, next) {
   try {
-    const userId = req.user.role === ROLES.CUSTOMER ? req.user.id : req.query.userId;
-    res.status(200).json(orderService.listOrders(userId));
+    // Admins may list all (optional ?userId= filter). Everyone else only sees own orders.
+    if (req.user.role === ROLES.ADMIN) {
+      return res.status(200).json(orderService.listOrders(req.query.userId));
+    }
+
+    if (!req.user.id) {
+      throw new AppError('Authenticated user id missing from token', 401);
+    }
+
+    res.status(200).json(orderService.listOrders(req.user.id));
   } catch (err) {
     next(err);
   }
@@ -37,7 +63,8 @@ async function list(req, res, next) {
 async function getById(req, res, next) {
   try {
     const order = orderService.getOrder(req.params.id);
-    if (req.user.role === ROLES.CUSTOMER && order.userId !== req.user.id) {
+    const isAdmin = req.user.role === ROLES.ADMIN;
+    if (!isAdmin && order.userId !== req.user.id) {
       throw new AppError('Forbidden', 403);
     }
     res.status(200).json(order);

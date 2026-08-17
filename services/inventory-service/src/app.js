@@ -6,7 +6,7 @@ const {
   createPublisher,
   EventTypes,
 } = require('@smartretailx/events');
-const { instrumentExpress } = require('@smartretailx/observability');
+const { instrumentExpress, closeTracing } = require('@smartretailx/observability');
 const config = require('./config');
 const logger = require('./utils/logger');
 const inventoryStore = require('./store/inventoryStore');
@@ -43,6 +43,16 @@ function createApp(options = {}) {
     res.status(200).json({ status: 'ready', mode: config.eventingMode });
   });
 
+  app.get('/api/v1/stock', (_req, res) => {
+    const snapshot = inventoryStore.snapshot();
+    const items = Object.entries(snapshot).map(([productId, row]) => ({
+      productId,
+      ...row,
+      available: row.stock - row.reserved,
+    }));
+    res.json({ items, count: items.length });
+  });
+
   app.get('/api/v1/stock/:productId', (req, res) => {
     const row = inventoryStore.ensure(req.params.productId);
     res.json({
@@ -58,7 +68,28 @@ function createApp(options = {}) {
     res.status(201).json({ productId: req.params.productId, ...row });
   });
 
+  /** Set absolute stock level (admin/warehouse via gateway RBAC). */
+  app.patch('/api/v1/stock/:productId', (req, res) => {
+    const qty = Number(req.body.quantity ?? req.body.stock);
+    if (!Number.isFinite(qty) || qty < 0) {
+      return res.status(400).json({
+        error: { message: 'quantity (or stock) must be a non-negative number' },
+      });
+    }
+    const existing = inventoryStore.ensure(req.params.productId);
+    const row = inventoryStore.seed(req.params.productId, qty);
+    // Preserve reserved when adjusting absolute stock
+    row.reserved = Math.min(existing.reserved, qty);
+    res.status(200).json({
+      productId: req.params.productId,
+      ...row,
+      available: row.stock - row.reserved,
+    });
+  });
+
   app.post('/internal/events', consumer.expressHandler());
+
+  closeTracing(app);
 
   return {
     app,

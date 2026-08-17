@@ -1,8 +1,5 @@
-# AWS Load Balancer Controller (ALB Ingress) — single external host for the gateway.
-# Prerequisites:
-#   - AWS Load Balancer Controller installed in the cluster
-#   - ACM certificate ARN for the host
-#   - Subnets tagged for ALB discovery (kubernetes.io/role/elb)
+# AWS Load Balancer Controller (ALB Ingress)
+# "/" → frontend (SPA), API prefixes → gateway, Socket.IO → notification-service
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -17,27 +14,82 @@ metadata:
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
     alb.ingress.kubernetes.io/ssl-redirect: "443"
-    # Set from Terraform output: acm_certificate_arn (regional ACM for ALB TLS termination)
     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:REGION:ACCOUNT_ID:certificate/CERTIFICATE_ID
-    # Enforce HTTPS on the listener; HTTP only redirects
     alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
     alb.ingress.kubernetes.io/healthcheck-path: /health
     alb.ingress.kubernetes.io/healthcheck-port: traffic-port
     alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
     alb.ingress.kubernetes.io/success-codes: "200"
     alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=60
-    # Multi-AZ: ALB spans subnets across AZs automatically when subnets are tagged
     alb.ingress.kubernetes.io/tags: Environment=base,Project=smartretailx
+    # Longer paths first; ALB evaluates by path length
+    alb.ingress.kubernetes.io/group.name: smartretailx
 spec:
   ingressClassName: alb
   rules:
     - host: api.smartretailx.example.com
       http:
         paths:
-          - path: /
+          - path: /users
             pathType: Prefix
             backend:
               service:
                 name: gateway
+                port:
+                  number: 80
+          - path: /catalogue
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: 80
+          - path: /orders
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: 80
+          - path: /inventory
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: 80
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: 80
+          - path: /docs
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: 80
+          - path: /metrics
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: 80
+          - path: /socket.io
+            pathType: Prefix
+            backend:
+              service:
+                name: notification-service
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
                 port:
                   number: 80

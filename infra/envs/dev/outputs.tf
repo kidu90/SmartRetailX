@@ -97,5 +97,26 @@ output "irsa_gateway_role_arn" {
 
 output "ops_alerts_topic_arn" {
   value       = module.cloudwatch_alarms.ops_alerts_topic_arn
-  description = "SNS topic for CloudWatch ops alarms (5xx, latency, pod restarts)"
+  description = "SNS topic for CloudWatch ops alarms (5xx, latency, pod restarts, SQS depth)"
+}
+
+output "cloudwatch_dashboard_url" {
+  value       = module.monitoring.dashboard_console_url
+  description = "CloudWatch ops dashboard — open for report screenshots"
+}
+
+output "cloudwatch_dashboard_name" {
+  value = module.monitoring.dashboard_name
+}
+
+output "fluent_bit_role_arn" {
+  value = module.monitoring.fluent_bit_role_arn
+}
+
+output "xray_daemon_role_arn" {
+  value = module.monitoring.xray_daemon_role_arn
+}
+
+output "cloudwatch_log_groups" {
+  value = module.monitoring.log_group_names
 }

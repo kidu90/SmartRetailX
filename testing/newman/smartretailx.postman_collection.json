@@ -1,0 +1,1049 @@
+{
+  "info": {
+    "name": "SmartRetailX API (Newman)",
+    "description": "Automated API tests + evidence capture across Auth, Catalogue, Orders, Inventory, and Health. Folder order matters — tokens and IDs are chained via environment variables.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 Auth (user-service)",
+      "item": [
+        {
+          "name": "POST register (customer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('Has accessToken + user', () => {",
+                  "  pm.expect(b).to.have.property('accessToken');",
+                  "  pm.expect(b).to.have.property('user');",
+                  "  pm.expect(b.user.role).to.eql('customer');",
+                  "});",
+                  "pm.environment.set('customerToken', b.accessToken);",
+                  "pm.environment.set('customerRefreshToken', b.refreshToken);",
+                  "pm.environment.set('customerId', b.user.id);",
+                  "pm.environment.set('customerEmail', b.user.email);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/users/api/v1/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer.newman.{{$timestamp}}@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"Newman Customer\",\n  \"role\": \"customer\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST register (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('Admin role', () => pm.expect(b.user.role).to.eql('admin'));",
+                  "pm.environment.set('adminToken', b.accessToken);",
+                  "pm.environment.set('adminRefreshToken', b.refreshToken);",
+                  "pm.environment.set('adminId', b.user.id);",
+                  "pm.environment.set('adminEmail', b.user.email);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/users/api/v1/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin.newman.{{$timestamp}}@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"Newman Admin\",\n  \"role\": \"admin\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST login (customer) -> save customerToken",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('JWT returned', () => pm.expect(b.accessToken).to.be.a('string').and.not.empty);",
+                  "pm.environment.set('customerToken', b.accessToken);",
+                  "pm.environment.set('customerRefreshToken', b.refreshToken);",
+                  "if (b.user && b.user.id) pm.environment.set('customerId', b.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/users/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{customerEmail}}\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST login (admin) -> save adminToken",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('Admin JWT returned', () => pm.expect(b.accessToken).to.be.a('string').and.not.empty);",
+                  "pm.environment.set('adminToken', b.accessToken);",
+                  "pm.environment.set('adminRefreshToken', b.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/users/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST refresh-token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('Rotated tokens', () => {",
+                  "  pm.expect(b.accessToken).to.be.a('string').and.not.empty;",
+                  "  pm.expect(b.refreshToken).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.environment.set('customerToken', b.accessToken);",
+                  "pm.environment.set('customerRefreshToken', b.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/users/api/v1/auth/refresh",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{customerRefreshToken}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /me (protected)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('Profile fields', () => {",
+                  "  pm.expect(b).to.have.property('id');",
+                  "  pm.expect(b).to.have.property('email');",
+                  "  pm.expect(b).to.have.property('role');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": "{{gatewayUrl}}/users/api/v1/users/me"
+          }
+        },
+        {
+          "name": "Negative: GET /me with no token -> 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gatewayUrl}}/users/api/v1/users/me"
+          }
+        },
+        {
+          "name": "Negative: POST login wrong password -> 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/users/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{customerEmail}}\",\n  \"password\": \"definitely-wrong-password\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Catalogue (catalogue-service)",
+      "item": [
+        {
+          "name": "POST create category (admin) — prerequisite",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('Category id', () => pm.expect(b.id).to.be.a('string'));",
+                  "pm.environment.set('categoryId', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/catalogue/api/v1/categories",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Newman Category {{$timestamp}}\",\n  \"description\": \"Created by Newman suite\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET all products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('Products array', () => pm.expect(b).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gatewayUrl}}/catalogue/api/v1/products"
+          }
+        },
+        {
+          "name": "POST new product (admin) -> save productId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('Product created', () => {",
+                  "  pm.expect(b).to.have.property('id');",
+                  "  pm.expect(b).to.have.property('name');",
+                  "  pm.expect(b).to.have.property('price');",
+                  "});",
+                  "pm.environment.set('productId', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/catalogue/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Newman Widget {{$timestamp}}\",\n  \"description\": \"API test product\",\n  \"price\": 19.99,\n  \"categoryId\": \"{{categoryId}}\",\n  \"sku\": \"NEWMAN-{{$timestamp}}\",\n  \"stock\": 100\n}"
+            }
+          }
+        },
+        {
+          "name": "GET product by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('Matches productId', () => pm.expect(b.id).to.eql(pm.environment.get('productId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gatewayUrl}}/catalogue/api/v1/products/{{productId}}"
+          }
+        },
+        {
+          "name": "PUT update product (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('Updated price', () => pm.expect(b.price).to.eql(24.99));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/catalogue/api/v1/products/{{productId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Newman Widget Updated\",\n  \"description\": \"Updated by Newman\",\n  \"price\": 24.99,\n  \"categoryId\": \"{{categoryId}}\",\n  \"stock\": 100\n}"
+            }
+          }
+        },
+        {
+          "name": "Negative (RBAC): POST product as customer -> 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "pm.test('RBAC evidence: customer cannot create products', () => {",
+                  "  pm.expect(pm.response.code).to.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/catalogue/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Should Fail\",\n  \"price\": 1,\n  \"categoryId\": \"{{categoryId}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Inventory (inventory-service)",
+      "item": [
+        {
+          "name": "GET stock level for productId (admin via gateway)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stock fields', () => {",
+                  "  pm.expect(b).to.have.property('productId');",
+                  "  pm.expect(b).to.have.property('stock');",
+                  "  pm.expect(b).to.have.property('available');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{gatewayUrl}}/inventory/api/v1/stock/{{productId}}"
+          }
+        },
+        {
+          "name": "Negative (RBAC): PATCH stock as customer -> 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "pm.test('RBAC evidence: customer cannot patch stock', () => {",
+                  "  pm.expect(pm.response.code).to.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/inventory/api/v1/stock/{{productId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 50\n}"
+            }
+          }
+        },
+        {
+          "name": "PATCH stock level (admin) -> 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stock updated', () => {",
+                  "  pm.expect(b.stock).to.eql(250);",
+                  "  pm.expect(b).to.have.property('available');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/inventory/api/v1/stock/{{productId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 250\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Orders (order-service)",
+      "item": [
+        {
+          "name": "POST create order (customer) -> save orderId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('Order created', () => {",
+                  "  pm.expect(b).to.have.property('id');",
+                  "  pm.expect(b).to.have.property('status');",
+                  "  pm.expect(b).to.have.property('items');",
+                  "});",
+                  "pm.environment.set('orderId', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/orders/api/v1/orders",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"paymentMethod\": \"card\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET order by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('Status field present', () => pm.expect(b).to.have.property('status'));",
+                  "pm.test('Order id matches', () => pm.expect(b.id).to.eql(pm.environment.get('orderId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": "{{gatewayUrl}}/orders/api/v1/orders/{{orderId}}"
+          }
+        },
+        {
+          "name": "GET orders for logged-in user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('Orders list', () => {",
+                  "  pm.expect(b).to.be.an('array');",
+                  "  pm.expect(b.some((o) => o.id === pm.environment.get('orderId'))).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": "{{gatewayUrl}}/orders/api/v1/orders"
+          }
+        },
+        {
+          "name": "Register other customer (for ownership check)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.environment.set('otherCustomerToken', b.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/users/api/v1/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"other.newman.{{$timestamp}}@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"Other Customer\",\n  \"role\": \"customer\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Negative: GET another user's order -> 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Ownership enforced (403 or 404)', () => {",
+                  "  pm.expect([403, 404]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{otherCustomerToken}}"
+              }
+            ],
+            "url": "{{gatewayUrl}}/orders/api/v1/orders/{{orderId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Health & Observability",
+      "item": [
+        {
+          "name": "GET Gateway /health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('status ok', () => pm.expect(b.status).to.eql('ok'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gatewayUrl}}/health"
+          }
+        },
+        {
+          "name": "GET Gateway /metrics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "pm.test('Prometheus text', () => {",
+                  "  const t = pm.response.text();",
+                  "  pm.expect(t.length).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{gatewayUrl}}/metrics"
+          }
+        },
+        {
+          "name": "GET User service /health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('status ok', () => pm.expect(b.status).to.eql('ok'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{userServiceUrl}}/health"
+          }
+        },
+        {
+          "name": "GET User service /metrics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "pm.test('Prometheus text', () => {",
+                  "  const t = pm.response.text();",
+                  "  pm.expect(t.length).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{userServiceUrl}}/metrics"
+          }
+        },
+        {
+          "name": "GET Catalogue service /health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('status ok', () => pm.expect(b.status).to.eql('ok'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{catalogueServiceUrl}}/health"
+          }
+        },
+        {
+          "name": "GET Catalogue service /metrics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "pm.test('Prometheus text', () => {",
+                  "  const t = pm.response.text();",
+                  "  pm.expect(t.length).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{catalogueServiceUrl}}/metrics"
+          }
+        },
+        {
+          "name": "GET Order service /health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('status ok', () => pm.expect(b.status).to.eql('ok'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{orderServiceUrl}}/health"
+          }
+        },
+        {
+          "name": "GET Order service /metrics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "pm.test('Prometheus text', () => {",
+                  "  const t = pm.response.text();",
+                  "  pm.expect(t.length).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{orderServiceUrl}}/metrics"
+          }
+        },
+        {
+          "name": "GET Inventory service /health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('status ok', () => pm.expect(b.status).to.eql('ok'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventoryServiceUrl}}/health"
+          }
+        },
+        {
+          "name": "GET Inventory service /metrics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "pm.test('Prometheus text', () => {",
+                  "  const t = pm.response.text();",
+                  "  pm.expect(t.length).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventoryServiceUrl}}/metrics"
+          }
+        },
+        {
+          "name": "GET Notification service /health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "const b = pm.response.json();",
+                  "pm.test('status ok', () => pm.expect(b.status).to.eql('ok'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{notificationServiceUrl}}/health"
+          }
+        },
+        {
+          "name": "GET Notification service /metrics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));",
+                  "pm.test('Prometheus text', () => {",
+                  "  const t = pm.response.text();",
+                  "  pm.expect(t.length).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{notificationServiceUrl}}/metrics"
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Cleanup",
+      "item": [
+        {
+          "name": "DELETE product (admin) -> 204",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Response time < 1500ms', () => pm.expect(pm.response.responseTime).to.be.below(1500));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{gatewayUrl}}/catalogue/api/v1/products/{{productId}}"
+          }
+        }
+      ]
+    }
+  ]
+}

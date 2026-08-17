@@ -9,7 +9,10 @@ resources:
   - catalogue-service
   - order-service
   - gateway
+  - notification-service
+  - frontend
   - ingress.yaml
+  - observability
 
 labels:
   - pairs:

@@ -24,7 +24,20 @@ function createPublisher(options = {}) {
 
   const sns =
     mode === 'aws'
-      ? new SNSClient({ region: process.env.AWS_REGION || 'ap-south-1' })
+      ? (() => {
+          const client = new SNSClient({
+            region: process.env.AWS_REGION || 'ap-south-1',
+          });
+          if (process.env.AWS_XRAY_ENABLED === 'true') {
+            try {
+              const AWSXRay = require('aws-xray-sdk-core');
+              return AWSXRay.captureAWSv3Client(client);
+            } catch {
+              return client;
+            }
+          }
+          return client;
+        })()
       : null;
 
   const fanoutClients = new Map();

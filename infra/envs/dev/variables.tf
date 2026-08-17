@@ -57,3 +57,9 @@ variable "alb_arn_suffix" {
   type        = string
   default     = ""
 }
+
+variable "alert_email" {
+  description = "Email for CloudWatch alarm SNS subscription (confirm after apply)"
+  type        = string
+  default     = ""
+}

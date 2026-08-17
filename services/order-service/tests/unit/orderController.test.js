@@ -43,6 +43,19 @@ describe('orderController', () => {
     expect(orderService.listOrders).toHaveBeenCalledWith('u1');
   });
 
+  it('admin lists all orders when no userId query', async () => {
+    req.user = { id: 'admin-1', role: ROLES.ADMIN };
+    orderService.listOrders.mockReturnValue([{ id: 'o1' }, { id: 'o2' }]);
+    await orderController.list(req, res, next);
+    expect(orderService.listOrders).toHaveBeenCalledWith(undefined);
+  });
+
+  it('rejects list when customer token has no id', async () => {
+    req.user = { id: undefined, role: ROLES.CUSTOMER };
+    await orderController.list(req, res, next);
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 401 }));
+  });
+
   it('gets order by id when owned', async () => {
     orderService.getOrder.mockReturnValue({ id: 'o1', userId: 'u1' });
     req.params.id = 'o1';
@@ -105,6 +118,14 @@ describe('orderController', () => {
     req.params.id = 'o1';
     await orderController.getById(req, res, next);
     expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 403 }));
+  });
+
+  it('admin can read any order', async () => {
+    req.user = { id: 'admin-1', role: ROLES.ADMIN };
+    orderService.getOrder.mockReturnValue({ id: 'o1', userId: 'other' });
+    req.params.id = 'o1';
+    await orderController.getById(req, res, next);
+    expect(res.json).toHaveBeenCalledWith({ id: 'o1', userId: 'other' });
   });
 
   it('admin can create for a specified userId', async () => {

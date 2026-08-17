@@ -46,9 +46,9 @@ variable "endpoint_public_access" {
 }
 
 variable "enabled_cluster_log_types" {
-  description = "Control plane log types"
+  description = "EKS control plane log types shipped to CloudWatch"
   type        = list(string)
-  default     = ["api", "audit"]
+  default     = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
 }
 
 variable "instance_types" {

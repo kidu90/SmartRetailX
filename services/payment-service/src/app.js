@@ -6,7 +6,7 @@ const {
   createPublisher,
   EventTypes,
 } = require('@smartretailx/events');
-const { instrumentExpress } = require('@smartretailx/observability');
+const { instrumentExpress, closeTracing } = require('@smartretailx/observability');
 const config = require('./config');
 const logger = require('./utils/logger');
 const { createPaymentHandlers } = require('./handlers');
@@ -39,6 +39,8 @@ function createApp(options = {}) {
   });
 
   app.post('/internal/events', consumer.expressHandler());
+
+  closeTracing(app);
 
   return {
     app,

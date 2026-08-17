@@ -8,6 +8,7 @@
     "@smartretailx/logger": "*",
     "@smartretailx/metrics": "*",
     "@smartretailx/tracing": "*",
+    "@smartretailx/emf-metrics": "*",
     "pino-http": "^10.3.0"
   },
   "engines": {

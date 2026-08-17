@@ -203,6 +203,12 @@ resource "aws_iam_openid_connect_provider" "this" {
   tags = local.tags
 }
 
+# Attach CloudWatch Agent policy so Container Insights can scrape node/pod metrics
+resource "aws_iam_role_policy_attachment" "node_CloudWatchAgentServerPolicy" {
+  role       = aws_iam_role.node.name
+  policy_arn = "arn:${data.aws_partition.current.partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
+}
+
 # --- Managed node group ---
 resource "aws_eks_node_group" "this" {
   cluster_name    = aws_eks_cluster.this.name
@@ -233,5 +239,6 @@ resource "aws_eks_node_group" "this" {
     aws_iam_role_policy_attachment.node_AmazonEKSWorkerNodePolicy,
     aws_iam_role_policy_attachment.node_AmazonEKS_CNI_Policy,
     aws_iam_role_policy_attachment.node_AmazonEC2ContainerRegistryReadOnly,
+    aws_iam_role_policy_attachment.node_CloudWatchAgentServerPolicy,
   ]
 }

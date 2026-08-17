@@ -1,11 +1,15 @@
 const pinoHttp = require('pino-http');
 const { createLogger, httpIgnorePaths } = require('@smartretailx/logger');
 const { createMetrics } = require('@smartretailx/metrics');
-const { initTracing, tracingMiddleware } = require('@smartretailx/tracing');
+const { initTracing, tracingMiddleware, closeTracing } = require('@smartretailx/tracing');
+const { emfHttpMiddleware } = require('@smartretailx/emf-metrics');
 
 /**
- * Attach structured logging, /metrics, and optional OTel middleware.
+ * Attach structured logging (stdout JSON), local /metrics, EMF HTTP metrics,
+ * and optional AWS X-Ray / OTel middleware.
+ *
  * Call initTracing(serviceName) once at process startup (before listen).
+ * Call closeTracing(app) after all routes (before error handlers) when X-Ray is on.
  */
 function instrumentExpress(app, { serviceName, logger: existingLogger } = {}) {
   const logger = existingLogger || createLogger({ serviceName });
@@ -13,6 +17,7 @@ function instrumentExpress(app, { serviceName, logger: existingLogger } = {}) {
 
   app.use(tracingMiddleware(serviceName));
   metrics.mount(app);
+  app.use(emfHttpMiddleware(serviceName));
   app.use(
     pinoHttp({
       logger,
@@ -22,7 +27,7 @@ function instrumentExpress(app, { serviceName, logger: existingLogger } = {}) {
     })
   );
 
-  return { logger, metrics };
+  return { logger, metrics, closeTracing: () => closeTracing(app) };
 }
 
 module.exports = {
@@ -31,5 +36,6 @@ module.exports = {
   createMetrics,
   initTracing,
   tracingMiddleware,
+  closeTracing,
   instrumentExpress,
 };

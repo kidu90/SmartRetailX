@@ -4,7 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
-const { instrumentExpress } = require('@smartretailx/observability');
+const { instrumentExpress, closeTracing } = require('@smartretailx/observability');
 const logger = require('./utils/logger');
 const routes = require('./routes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
@@ -33,6 +33,7 @@ function createApp() {
 
   app.use('/api/v1', routes);
 
+  closeTracing(app);
   app.use(notFoundHandler);
   app.use(errorHandler);
 

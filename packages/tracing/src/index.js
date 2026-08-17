@@ -1,19 +1,37 @@
 const { context, trace, SpanStatusCode } = require('@opentelemetry/api');
 
 let sdk = null;
+let xrayExpress = null;
+let xrayEnabled = false;
 
 /**
- * Initialise OpenTelemetry when OTEL_ENABLED=true or AWS_XRAY_ENABLED=true.
- * Export via OTLP HTTP (default localhost:4318). On EKS, point at the ADOT
- * collector which can forward to AWS X-Ray.
+ * Initialise tracing:
+ * - AWS_XRAY_ENABLED=true → aws-xray-sdk (UDP to X-Ray daemon)
+ * - OTEL_ENABLED=true → OpenTelemetry OTLP (e.g. ADOT → X-Ray)
  */
 async function initTracing(serviceName) {
-  const enabled =
-    process.env.OTEL_ENABLED === 'true' ||
-    process.env.AWS_XRAY_ENABLED === 'true';
+  if (process.env.AWS_XRAY_ENABLED === 'true') {
+    try {
+      const AWSXRay = require('aws-xray-sdk-core');
+      xrayExpress = require('aws-xray-sdk-express');
+      const daemon =
+        process.env.AWS_XRAY_DAEMON_ADDRESS || '127.0.0.1:2000';
+      AWSXRay.setDaemonAddress(daemon);
+      AWSXRay.captureHTTPsGlobal(require('http'));
+      AWSXRay.captureHTTPsGlobal(require('https'));
+      xrayEnabled = true;
+      if (process.env.NODE_ENV !== 'test') {
+        console.info(`[tracing] AWS X-Ray SDK enabled for ${serviceName} → ${daemon}`);
+      }
+      return { enabled: true, mode: 'xray-sdk', shutdown: async () => {} };
+    } catch (err) {
+      console.warn(`[tracing] X-Ray SDK init failed for ${serviceName}:`, err.message);
+    }
+  }
 
-  if (!enabled || sdk) {
-    return { enabled: Boolean(sdk), shutdown: async () => {} };
+  const otelOn = process.env.OTEL_ENABLED === 'true';
+  if (!otelOn || sdk) {
+    return { enabled: Boolean(sdk) || xrayEnabled, shutdown: async () => {} };
   }
 
   try {
@@ -21,18 +39,10 @@ async function initTracing(serviceName) {
     const {
       OTLPTraceExporter,
     } = require('@opentelemetry/exporter-trace-otlp-http');
-    const {
-      Resource,
-    } = require('@opentelemetry/resources');
-    const {
-      ATTR_SERVICE_NAME,
-    } = require('@opentelemetry/semantic-conventions');
-    const {
-      HttpInstrumentation,
-    } = require('@opentelemetry/instrumentation-http');
-    const {
-      ExpressInstrumentation,
-    } = require('@opentelemetry/instrumentation-express');
+    const { Resource } = require('@opentelemetry/resources');
+    const { ATTR_SERVICE_NAME } = require('@opentelemetry/semantic-conventions');
+    const { HttpInstrumentation } = require('@opentelemetry/instrumentation-http');
+    const { ExpressInstrumentation } = require('@opentelemetry/instrumentation-express');
 
     const endpoint =
       process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://127.0.0.1:4318';
@@ -56,23 +66,26 @@ async function initTracing(serviceName) {
     await sdk.start();
     return {
       enabled: true,
+      mode: 'otel',
       async shutdown() {
         await sdk.shutdown();
         sdk = null;
       },
     };
   } catch (err) {
-    // Tracing must never take down the service
-    console.warn(`[tracing] init failed for ${serviceName}:`, err.message);
+    console.warn(`[tracing] OTel init failed for ${serviceName}:`, err.message);
     return { enabled: false, shutdown: async () => {} };
   }
 }
 
 /**
- * Lightweight Express middleware that tags the active span with route info.
- * Safe when tracing is disabled (no-op).
+ * Inbound middleware: X-Ray openSegment, or OTel span tags.
  */
 function tracingMiddleware(serviceName) {
+  if (xrayEnabled && xrayExpress) {
+    return xrayExpress.openSegment(serviceName);
+  }
+
   return (req, res, next) => {
     const span = trace.getSpan(context.active());
     if (span) {
@@ -88,4 +101,11 @@ function tracingMiddleware(serviceName) {
   };
 }
 
-module.exports = { initTracing, tracingMiddleware };
+/** Call after all routes when using the X-Ray Express SDK. */
+function closeTracing(app) {
+  if (xrayEnabled && xrayExpress) {
+    app.use(xrayExpress.closeSegment());
+  }
+}
+
+module.exports = { initTracing, tracingMiddleware, closeTracing };

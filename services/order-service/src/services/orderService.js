@@ -1,5 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const { EventTypes } = require('@smartretailx/events');
+const { recordOrderCreated } = require('@smartretailx/emf-metrics');
 const orderStore = require('../store/orderStore');
 const catalogueClient = require('../clients/catalogueClient');
 const AppError = require('../utils/AppError');
@@ -73,6 +74,8 @@ async function createOrder({ userId, items, paymentMethod }, publisher) {
     },
     { correlationId: order.id, source: 'order-service' }
   );
+
+  recordOrderCreated('order-service').catch(() => {});
 
   return order;
 }

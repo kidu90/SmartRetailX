@@ -45,8 +45,15 @@ function authenticate(options = {}) {
         });
       }
 
+      const userId = payload.sub || payload.userId || payload.id;
+      if (!userId) {
+        return res.status(401).json({
+          error: { message: 'Token missing subject / user id' },
+        });
+      }
+
       req.user = {
-        id: payload.sub,
+        id: userId,
         email: payload.email,
         role,
         tokenId: payload.jti,

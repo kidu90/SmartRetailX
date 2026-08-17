@@ -3,10 +3,11 @@ const { createProxyBreaker } = require('@smartretailx/resilient-http');
 const logger = require('./utils/logger');
 
 /**
- * Proxy with opossum circuit breaker: after enough upstream failures the
- * gateway returns a 503 fallback instead of hammering a sick service.
+ * Proxy with opossum circuit breaker.
+ * Strips the gateway mount prefix so /users/api/v1/... → /api/v1/... upstream.
  */
-function createResilientProxy(target, name) {
+function createResilientProxy(target, name, { stripPrefix } = {}) {
+  const prefix = stripPrefix || `/${name.replace(/-service$/, '')}`;
   const { breaker, guard, recordSuccess, recordFailure, status } =
     createProxyBreaker(name, {
       errorThresholdPercentage: 50,
@@ -18,6 +19,12 @@ function createResilientProxy(target, name) {
   const proxy = createProxyMiddleware({
     target,
     changeOrigin: true,
+    pathRewrite: (path) => {
+      if (path.startsWith(prefix)) {
+        return path.slice(prefix.length) || '/';
+      }
+      return path;
+    },
     on: {
       proxyRes(proxyRes) {
         if (proxyRes.statusCode >= 500) {
