@@ -203,6 +203,19 @@ resource "aws_iam_role_policy" "gateway" {
         Effect   = "Allow"
         Action   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
         Resource = [var.jwt_secret_arn]
+      },
+      {
+        Sid    = "CloudWatchReadOnlyMetrics"
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:GetMetricData",
+          "cloudwatch:GetMetricStatistics",
+          "cloudwatch:ListMetrics",
+          "cloudwatch:GetDashboard",
+          "cloudwatch:ListDashboards",
+          "cloudwatch:DescribeAlarms"
+        ]
+        Resource = "*"
       }
     ]
   })

@@ -79,4 +79,6 @@ Optional alternative: `OTEL_ENABLED=true` + ADOT collector → X-Ray (OTLP).
 
 ## Admin UI
 
-Admin dashboard links to CloudWatch (set `VITE_CLOUDWATCH_DASHBOARD_URL` from Terraform output). Grafana is removed.
+Admin dashboard (`/admin/dashboard`) loads **`GET /ops/metrics/summary`** (gateway, admin JWT) which calls CloudWatch `GetMetricData` for EMF request/error/latency series over the last hour, then renders them with **recharts**. A button opens the full console URL from `terraform output cloudwatch_dashboard_url` (`CW_DASHBOARD_URL` / `VITE_CLOUDWATCH_DASHBOARD_URL`).
+
+Gateway IRSA includes read-only CloudWatch (`GetMetricData`, `GetDashboard`, …). Locally without AWS credentials the endpoint returns a **demo** series so the charts still render.

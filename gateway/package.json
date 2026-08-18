@@ -25,7 +25,8 @@
     "@smartretailx/metrics": "*",
     "@smartretailx/tracing": "*",
     "@smartretailx/observability": "*",
-    "@smartretailx/resilient-http": "*"
+    "@smartretailx/resilient-http": "*",
+    "@aws-sdk/client-cloudwatch": "^3.758.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",

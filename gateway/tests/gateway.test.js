@@ -53,4 +53,37 @@ describe('gateway', () => {
     const res = await request(app).get('/unknown');
     expect(res.status).toBe(404);
   });
+
+  it('GET /ops/metrics/summary requires admin', async () => {
+    const denied = await request(app).get('/ops/metrics/summary');
+    expect(denied.status).toBe(401);
+
+    const customer = jwt.sign(
+      { email: 'c@example.com', role: ROLES.CUSTOMER, typ: 'access' },
+      SECRET,
+      { subject: 'c1', expiresIn: '15m' }
+    );
+    const forbid = await request(app)
+      .get('/ops/metrics/summary')
+      .set('Authorization', `Bearer ${customer}`);
+    expect(forbid.status).toBe(403);
+  });
+
+  it('GET /ops/metrics/summary returns series for admin', async () => {
+    process.env.CW_METRICS_DEMO = 'true';
+    const token = jwt.sign(
+      { email: 'a@example.com', role: ROLES.ADMIN, typ: 'access' },
+      SECRET,
+      { subject: 'a1', expiresIn: '15m' }
+    );
+    const res = await request(app)
+      .get('/ops/metrics/summary')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.series).toBeDefined();
+    expect(res.body.series.requestRate).toBeInstanceOf(Array);
+    expect(res.body.totals).toHaveProperty('requests');
+    expect(res.body.dashboardConsoleUrl).toBeTruthy();
+    delete process.env.CW_METRICS_DEMO;
+  });
 });

@@ -13,6 +13,10 @@ data:
   SERVICE_NAME: "gateway"
   AWS_XRAY_ENABLED: "true"
   AWS_XRAY_DAEMON_ADDRESS: "127.0.0.1:2000"
+  CW_METRICS_NAMESPACE: "SmartRetailX"
+  # Set after terraform apply (outputs cloudwatch_dashboard_name / cloudwatch_dashboard_url)
+  CW_DASHBOARD_NAME: "smartretailx-dev-ops"
+  CW_DASHBOARD_URL: ""
   USER_SERVICE_URL: "http://user-service:3001"
   CATALOGUE_SERVICE_URL: "http://catalogue-service:3002"
   ORDER_SERVICE_URL: "http://order-service:3003"

@@ -8,6 +8,7 @@ const config = require('./config');
 const logger = require('./utils/logger');
 const { buildAggregatedSwagger } = require('./swagger/aggregate');
 const { createResilientProxy } = require('./proxy');
+const { createCloudWatchMetrics } = require('./cloudwatchMetrics');
 
 async function probe(name, baseUrl) {
   const started = Date.now();
@@ -40,6 +41,12 @@ function createApp() {
   const requireOrderAccess = requireRoles(ROLES.CUSTOMER, ROLES.ADMIN, ROLES.WAREHOUSE_STAFF);
   const requireInventoryAccess = requireRoles(ROLES.ADMIN, ROLES.WAREHOUSE_STAFF);
   const requireAdmin = requireRoles(ROLES.ADMIN);
+  const cwMetrics = createCloudWatchMetrics({
+    region: config.awsRegion,
+    namespace: config.cwMetricsNamespace,
+    dashboardName: config.cwDashboardName,
+    dashboardConsoleUrl: config.cwDashboardUrl,
+  });
 
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors());
@@ -97,7 +104,6 @@ function createApp() {
       probe('inventory-service', config.inventoryServiceUrl),
       probe('notification-service', config.notificationServiceUrl),
     ]);
-    // Fix gateway self-probe: always ok if this handler runs
     checks[0] = {
       service: 'gateway',
       url: `http://localhost:${config.port}`,
@@ -110,6 +116,19 @@ function createApp() {
       services: checks,
       allHealthy: checks.every((c) => c.ok),
     });
+  });
+
+  /**
+   * Read-only CloudWatch summary (EMF last hour) for in-app charts.
+   * Admin JWT required. Uses IRSA CloudWatch read policy in EKS.
+   */
+  app.get('/ops/metrics/summary', requireAuth, requireAdmin, async (_req, res, next) => {
+    try {
+      const summary = await cwMetrics.getHourlySummary();
+      res.status(200).json(summary);
+    } catch (err) {
+      next(err);
+    }
   });
 
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
@@ -137,7 +156,7 @@ function createApp() {
     res.status(404).json({
       error: {
         message:
-          'Route not found on gateway. Try /users/*, /catalogue/*, /orders/*, /inventory/*, or /docs',
+          'Route not found on gateway. Try /users/*, /catalogue/*, /orders/*, /inventory/*, /ops/*, or /docs',
       },
     });
   });
