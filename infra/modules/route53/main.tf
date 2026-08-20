@@ -35,7 +35,7 @@ resource "aws_route53_zone" "this" {
 }
 
 resource "aws_route53_record" "cdn" {
-  count = var.cloudfront_domain_name != null ? 1 : 0
+  count = var.create_cdn_records ? 1 : 0
 
   zone_id = local.zone_id
   name    = var.cdn_record_name
@@ -49,7 +49,7 @@ resource "aws_route53_record" "cdn" {
 }
 
 resource "aws_route53_record" "cdn_aaaa" {
-  count = var.cloudfront_domain_name != null ? 1 : 0
+  count = var.create_cdn_records ? 1 : 0
 
   zone_id = local.zone_id
   name    = var.cdn_record_name

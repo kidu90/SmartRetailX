@@ -27,6 +27,15 @@ locals {
   })
 }
 
+# First matching version that AWS still allows CreateDBCluster for in this region.
+data "aws_rds_engine_version" "aurora_postgresql" {
+  engine = "aurora-postgresql"
+  preferred_versions = compact(concat(
+    var.engine_version != null ? [var.engine_version] : [],
+    ["16.4", "16.2", "16.1", "15.10", "15.8", "15.7", "15.5", "15.3", "14.15", "14.13", "14.12"]
+  ))
+}
+
 resource "random_password" "master" {
   length           = 32
   special          = true
@@ -44,7 +53,7 @@ resource "aws_db_subnet_group" "this" {
 
 resource "aws_security_group" "this" {
   name        = "${var.name_prefix}-aurora-sg"
-  description = "Aurora PostgreSQL – ingress from EKS nodes only"
+  description = "Aurora PostgreSQL - ingress from EKS nodes only"
   vpc_id      = var.vpc_id
 
   tags = merge(local.tags, {
@@ -75,7 +84,7 @@ resource "aws_rds_cluster" "this" {
   cluster_identifier = "${var.name_prefix}-aurora"
   engine             = "aurora-postgresql"
   engine_mode        = var.serverless_v2 ? "provisioned" : "provisioned"
-  engine_version     = var.engine_version
+  engine_version     = data.aws_rds_engine_version.aurora_postgresql.version
   database_name      = var.database_name
   master_username    = var.master_username
   master_password    = random_password.master.result

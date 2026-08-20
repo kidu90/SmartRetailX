@@ -1,9 +1,8 @@
-# ACM Module — TLS certificates for ALB (regional) and CloudFront (us-east-1)
+# ACM Module — TLS certificates for ALB (regional)
 #
-# Cost-efficiency note:
-# Public ACM certificates are free. DNS validation via Route53 avoids email
-# delays. We issue a regional cert for ALB HTTPS listeners and optionally a
-# us-east-1 cert for CloudFront custom domains (CloudFront requires that region).
+# Lab / example.com domains cannot complete DNS validation (NS not delegated).
+# Set enabled=false to skip certificate creation so terraform apply succeeds.
+# Set enabled=true + create_validation_records=true only for a real domain.
 
 terraform {
   required_version = ">= 1.5.0"
@@ -22,6 +21,8 @@ locals {
 }
 
 resource "aws_acm_certificate" "regional" {
+  count = var.enabled ? 1 : 0
+
   domain_name               = var.api_domain_name
   subject_alternative_names = var.subject_alternative_names
   validation_method         = "DNS"
@@ -36,8 +37,8 @@ resource "aws_acm_certificate" "regional" {
 }
 
 resource "aws_route53_record" "regional_validation" {
-  for_each = var.create_validation_records ? {
-    for dvo in aws_acm_certificate.regional.domain_validation_options : dvo.domain_name => {
+  for_each = var.enabled && var.create_validation_records ? {
+    for dvo in aws_acm_certificate.regional[0].domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
       record = dvo.resource_record_value
       type   = dvo.resource_record_type
@@ -50,11 +51,4 @@ resource "aws_route53_record" "regional_validation" {
   ttl             = 60
   type            = each.value.type
   zone_id         = var.zone_id
-}
-
-resource "aws_acm_certificate_validation" "regional" {
-  count = var.create_validation_records ? 1 : 0
-
-  certificate_arn         = aws_acm_certificate.regional.arn
-  validation_record_fqdns = [for record in aws_route53_record.regional_validation : record.fqdn]
 }

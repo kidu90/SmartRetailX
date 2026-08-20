@@ -69,12 +69,13 @@ resource "aws_s3_bucket_lifecycle_configuration" "assets" {
     filter {}
 
     noncurrent_version_transition {
-      noncurrent_days = 30
+      # Must be strictly less than noncurrent_version_expiration.noncurrent_days
+      noncurrent_days = 7
       storage_class   = "STANDARD_IA"
     }
 
     noncurrent_version_expiration {
-      noncurrent_days = var.noncurrent_expiration_days
+      noncurrent_days = max(var.noncurrent_expiration_days, 30)
     }
 
     abort_incomplete_multipart_upload {

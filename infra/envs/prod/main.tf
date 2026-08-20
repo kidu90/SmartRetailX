@@ -92,6 +92,7 @@ module "route53" {
   api_record_name           = "api.${var.domain_name}"
   cloudfront_domain_name    = module.cloudfront.domain_name
   cloudfront_hosted_zone_id = module.cloudfront.hosted_zone_id
+  create_cdn_records        = true
   alb_dns_name              = var.alb_dns_name
   alb_zone_id               = var.alb_zone_id
   tags                      = local.tags
@@ -100,11 +101,12 @@ module "route53" {
 module "acm" {
   source = "../../modules/acm"
 
+  enabled                   = var.enable_acm
   name_prefix               = var.name_prefix
   api_domain_name           = "api.${var.domain_name}"
   subject_alternative_names = []
   zone_id                   = module.route53.zone_id
-  create_validation_records = var.create_route53_zone
+  create_validation_records = var.enable_acm && var.create_route53_zone
   tags                      = local.tags
 }
 

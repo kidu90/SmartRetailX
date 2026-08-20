@@ -35,6 +35,12 @@ variable "cloudfront_hosted_zone_id" {
   default = null
 }
 
+variable "create_cdn_records" {
+  description = "Create CDN A/AAAA aliases (must be known at plan time; do not derive from CloudFront outputs)"
+  type        = bool
+  default     = true
+}
+
 variable "alb_dns_name" {
   description = "ALB DNS name (set after ALB exists; optional at first apply)"
   type        = string

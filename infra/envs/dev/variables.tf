@@ -63,3 +63,15 @@ variable "alert_email" {
   type        = string
   default     = ""
 }
+
+variable "wait_for_acm_validation" {
+  description = "Deprecated — use enable_acm. Kept so old tfvars still parse."
+  type        = bool
+  default     = false
+}
+
+variable "enable_acm" {
+  description = "Create ACM cert. Keep false for example.com / undelegated lab domains."
+  type        = bool
+  default     = false
+}
